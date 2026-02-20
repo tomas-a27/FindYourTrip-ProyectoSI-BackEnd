@@ -1,5 +1,6 @@
-import { Entity, PrimaryKey, Property, ManyToOne} from '@mikro-orm/core';
+import { Entity, PrimaryKey, Property, OneToMany, Cascade, Collection} from '@mikro-orm/core';
 import crypto from 'crypto';
+import { Vehiculo } from '../vehiculo/vehiculo.entity.js';
 
 @Entity()
 export class Usuario {
@@ -58,6 +59,9 @@ export class Usuario {
     @Property({ type: 'blob', nullable: true })
     fotoPerfil?: Buffer
 
+
+    @OneToMany(()=> Vehiculo, vehiculo => vehiculo.usuario, {cascade: [Cascade.ALL]})
+    vehiculos= new Collection<Vehiculo>(this)
 
     static hashPassword(password: string) {
     return crypto.createHmac('sha256', password).digest('hex');

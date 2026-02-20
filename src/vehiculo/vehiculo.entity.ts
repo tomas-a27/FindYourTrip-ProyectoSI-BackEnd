@@ -1,4 +1,4 @@
-import {Entity, PrimaryKey, Property, ManyToOne} from '@mikro-orm/core'
+import {Entity, PrimaryKey, Property, ManyToOne, Rel} from '@mikro-orm/core'
 import { Usuario } from '../usuario/usuario.entity.js'
 
 @Entity()
@@ -21,6 +21,6 @@ export class Vehiculo {
 
 
     @ManyToOne(()=>Usuario, {nullable:false})
-    usuario!: Usuario
+    usuario!: Rel<Usuario>
 
 }

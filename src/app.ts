@@ -3,6 +3,8 @@ import 'reflect-metadata';
 import { orm, syncSchema } from './shared/db/orm.js';
 import { RequestContext } from '@mikro-orm/core';
 
+import { usuarioRouter } from './usuario/usuario.routes.js'
+
 const app = express();
 app.use(express.json());
 
@@ -11,6 +13,12 @@ app.use((req, res, next) => {
 });
 
 await syncSchema();
+
+app.use('/api/usuario', usuarioRouter)
+
+app.use((_, res) => {
+    return res.status(404).send({ message: 'Recurso no encontrado' })
+})
 
 const server = app.listen(3000, () => {
   console.log(`Server is running on http://localhost:3000`);

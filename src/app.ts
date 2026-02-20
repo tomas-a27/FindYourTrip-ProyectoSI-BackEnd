@@ -10,6 +10,13 @@ app.use((req, res, next) => {
   RequestContext.create(orm.em, next);
 });
 
+
+
+
+app.use((_, res) => {
+  return res.status(404).send({ message: 'Resource not found' })
+})
+
 await syncSchema();
 
 const server = app.listen(3000, () => {

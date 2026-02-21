@@ -18,18 +18,13 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/localidad', localidadRouter);
+app.use('/api/usuario', usuarioRouter);
 
 app.use((_, res) => {
   return res.status(404).send({ message: 'Resource not found' });
 });
 
 await syncSchema();
-
-app.use('/api/usuario', usuarioRouter)
-
-app.use((_, res) => {
-    return res.status(404).send({ message: 'Recurso no encontrado' })
-})
 
 const server = app.listen(3000, () => {
   console.log(`Server is running on http://localhost:3000`);

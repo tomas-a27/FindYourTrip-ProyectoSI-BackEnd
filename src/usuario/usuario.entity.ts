@@ -8,7 +8,7 @@ export class Usuario {
     @PrimaryKey()
     idUsuario!: number
 
-    @Property()
+    @Property({default: 'Pasajero'})
     tipoUsuario!: string
 
     @Property()
@@ -27,33 +27,33 @@ export class Usuario {
     email!: string
 
     @Property()
-    telefono!: number
+    telefono!: string
 
     @Property({hidden:true, lazy:true})
-    contraseñaUsuario!: string //seguridad
+    contrasenaUsuario!: string //seguridad
 
     @Property()
     generoUsuario!: string
 
-    @Property()
+    @Property({ nullable: true })
     calificacionPas?: number
 
-    @Property()
+    @Property({default: 'habilitado'})
     estadoUsuario!: string
 
-    @Property()
+    @Property({ nullable: true })
     nroLicenciaConductorUsuario?: string
 
-    @Property()
+    @Property({ nullable: true })
     vigenciaLicenciaConductorUsuario?: Date
 
     @Property({ type: 'blob', nullable: true })
     fotoLicenciaConductorUsuario?: Buffer 
 
-    @Property()
+    @Property({ nullable: true })
     calificacionConductor?: number
 
-    @Property()
+    @Property({ nullable: true })
     estadoConductor?: string
 
     @Property({ type: 'blob', nullable: true })

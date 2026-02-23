@@ -26,22 +26,16 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
         fotoPerfil: req.body.fotoPerfil
     }; 
     
-    // Validar campos requeridos
-        if (!['DNI', 'Pasaporte', 'LC', 'LE', 'CPI'].includes(req.body.sanitizedInput.tipoDocumento)) {
-            return res.status(400).json({
-                message: 'Tipo de Documento no válido'
-            });
-        }
-
-        if (req.body.sanitizedInput.tipoDocumento === 'DNI' && isNaN(Number(req.body.sanitizedInput.nroDocumento)))
-            return res.status(400).json({
-                message: 'Formato de DNI no válido'});
     //validar mail
+    if(req.body.sanitizedInput.email)
+    {
         if (!esEmailValido(req.body.sanitizedInput.email)){
             return res.status(400).json({
                 message: 'Email no válido'
             })
         }
+    }
+    
 
     Object.keys(req.body.sanitizedInput).forEach((key)=>{
         if(req.body.sanitizedInput[key] === undefined) {
@@ -81,7 +75,19 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
                         nroDocumento: userData.nroDocumento }
             ]
         });
+
+        // Validar campos requeridos
+        if (!['DNI', 'Pasaporte', 'LC', 'LE', 'CPI'].includes(req.body.sanitizedInput.tipoDocumento)) {
+            return res.status(400).json({
+                message: 'Tipo de Documento no válido'
+            });
+        }
+
+        if (req.body.sanitizedInput.tipoDocumento === 'DNI' && isNaN(Number(req.body.sanitizedInput.nroDocumento)))
+            return res.status(400).json({
+                message: 'Formato de DNI no válido'});
         
+        //Validar que sea unico        
         if (existingUser) {
             if (existingUser.email === userData.email) {
                 return res.status(409).json({
@@ -105,9 +111,10 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
 
     } catch (error: any) {
         res.status(500).json({ message: error.message})
-    }
-
+        }
 }
+
+
 
 async function CU02EditarPasajero(req: Request, res: Response) {
     try {

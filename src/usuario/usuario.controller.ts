@@ -109,9 +109,63 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
 
 }
 
+async function CU02EditarPasajero(req: Request, res: Response) {
+    try {
+        const idUsuario = Number.parseInt(req.params.id as string)
+        const userData = req.body.sanitizedInput
+        
+        const usuario = await em.findOneOrFail(Usuario, { idUsuario })
+
+        if (usuario.estadoUsuario === 'inhabilitado') {
+            return res.status(403).json({ message: 'Usuario inhabilitado' })
+        }
+
+        const camposEditables = [
+            'nombreUsuario',
+            'apellidoUsuario',
+            'generoUsuario',
+            'telefono',
+            'email',
+            'contrasenaUsuario'
+        ]
+
+        if (Object.keys(userData).length === 0) {
+            return res.status(400).json({ message: 'Debe editar al menos un campo' })
+        }
+
+        for (const key of Object.keys(userData)) {
+            if (!camposEditables.includes(key)) {
+                return res.status(400).json({ message: `El campo ${key} no se puede editar` })
+            }
+
+            if (userData[key] === '') {
+                return res.status(400).json({ message: `El campo ${key} no puede quedar vacío` })
+            }
+        }
+
+        if (userData.email && !esEmailValido(userData.email)) {
+            return res.status(400).json({ message: 'Email no válido' })
+        }
+
+        if (userData.telefono && isNaN(Number(userData.telefono))) {
+            return res.status(400).json({ message: 'Teléfono no válido' })
+        }
+
+        Object.assign(usuario, userData)
+        await em.flush()
+        res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuario })
+
+    } catch (error: any) {
+        if (error.name === 'NotFoundError') {
+            return res.status(404).json({ message: 'Usuario no encontrado' })
+        }
+        res.status(500).json({ message: error.message })
+    }
+}
+
 function esEmailValido(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
 
-export  { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario}
+export  { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario, CU02EditarPasajero}

@@ -1,6 +1,8 @@
-import { Entity, PrimaryKey, Property, OneToMany, Cascade, Collection} from '@mikro-orm/core';
-import crypto from 'crypto';
+import { Entity, PrimaryKey, Property, OneToMany, Cascade, Collection, Enum} from '@mikro-orm/core';
 import { Vehiculo } from '../vehiculo/vehiculo.entity.js';
+import { EstadoUsuario, TipoDocumento } from '../shared/enums.js'
+import crypto from 'crypto';
+
 
 @Entity()
 export class Usuario {
@@ -17,7 +19,7 @@ export class Usuario {
     @Property()
     apellidoUsuario!: string
 
-    @Property()
+    @Enum({ items: () => TipoDocumento })
     tipoDocumento!: string
 
     @Property()
@@ -38,7 +40,7 @@ export class Usuario {
     @Property({ nullable: true })
     calificacionPas?: number
 
-    @Property({default: 'habilitado'})
+    @Enum({ items: () => EstadoUsuario, default: EstadoUsuario.HABILITADO})
     estadoUsuario!: string
 
     @Property({ nullable: true })

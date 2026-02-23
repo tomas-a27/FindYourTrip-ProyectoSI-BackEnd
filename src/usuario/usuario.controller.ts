@@ -1,6 +1,7 @@
 import {Request, Response, NextFunction} from 'express'
 import { orm } from "../shared/db/orm.js";
 import { Usuario } from "./usuario.entity.js";
+import { TipoDocumento, EstadoUsuario } from '../shared/enums.js';
 
 const em = orm.em
 em.getRepository(Usuario)
@@ -27,14 +28,11 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
     }; 
     
     //validar mail
-    if(req.body.sanitizedInput.email)
-    {
-        if (!esEmailValido(req.body.sanitizedInput.email)){
+        if (req.body.sanitizedInput.email && !esEmailValido(req.body.sanitizedInput.email)){
             return res.status(400).json({
                 message: 'Email no válido'
             })
         }
-    }
     
 
     Object.keys(req.body.sanitizedInput).forEach((key)=>{
@@ -77,10 +75,11 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
         });
 
         // Validar campos requeridos
-        if (!['DNI', 'Pasaporte', 'LC', 'LE', 'CPI'].includes(req.body.sanitizedInput.tipoDocumento)) {
-            return res.status(400).json({
-                message: 'Tipo de Documento no válido'
-            });
+        const tipoDoc = req.body.sanitizedInput.tipoDocumento;
+        if (tipoDoc && !Object.values(TipoDocumento).includes(tipoDoc as TipoDocumento)) {
+        return res.status(400).json({
+            message: `Tipo de documento no válido. Opciones: ${Object.values(TipoDocumento).join(', ')}`
+        });
         }
 
         if (req.body.sanitizedInput.tipoDocumento === 'DNI' && isNaN(Number(req.body.sanitizedInput.nroDocumento)))
@@ -123,7 +122,7 @@ async function CU02EditarPasajero(req: Request, res: Response) {
         
         const usuario = await em.findOneOrFail(Usuario, { idUsuario })
 
-        if (usuario.estadoUsuario === 'inhabilitado') {
+        if (usuario.estadoUsuario === EstadoUsuario.INHABILITADO) {
             return res.status(403).json({ message: 'Usuario inhabilitado' })
         }
 

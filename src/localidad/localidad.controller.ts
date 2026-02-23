@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { orm } from '../shared/db/orm.js';
 import { Localidad } from './localidad.entity.js';
-import { error } from 'node:console';
 
 const em = orm.em;
 
@@ -24,7 +23,7 @@ function sanitizeLocalidadInput(
   next();
 }
 
-async function CU19CrearLocalidad(req: Request, res: Response) {
+async function crearLocalidad(req: Request, res: Response) {
   try {
     const localidad = em.create(Localidad, req.body.sanitizeLocalidadInput);
     await em.flush();
@@ -36,7 +35,51 @@ async function CU19CrearLocalidad(req: Request, res: Response) {
   }
 }
 
-async function showLocalidad(req: Request, res: Response) {
+async function editarLocalidad(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+    const localidadToUpdate = await em.findOneOrFail(Localidad, id);
+
+    if (
+      req.body.sanitizeLocalidadInput.codPostal &&
+      req.body.sanitizeLocalidadInput.codPostal !== localidadToUpdate.codPostal
+    ) {
+      // Verificar que no exista otra localidad con ese código
+      const anotherLocalidad = await em.findOne(Localidad, {
+        codPostal: req.body.sanitizeLocalidadInput.codPostal,
+      });
+      if (anotherLocalidad) {
+        res
+          .status(400)
+          .json({ message: 'Ya existe una localidad con ese codigo' });
+        return;
+      }
+    }
+    em.assign(localidadToUpdate, req.body.sanitizeLocalidadInput);
+    await em.flush();
+    res.status(200).json({ message: 'Localidad editada con éxito' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function eliminarLocalidad(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+    const localidadToDelete = await em.findOneOrFail(Localidad, id);
+
+    em.remove(localidadToDelete);
+    await em.flush();
+    res.status(200).json({
+      message: 'Localidad eliminada con éxito',
+      data: localidadToDelete,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function mostrarLocalidad(req: Request, res: Response) {
   try {
     const localidades = await em.findAll(Localidad);
     res.status(200).json({ message: 'Show localidades', data: localidades });
@@ -45,4 +88,24 @@ async function showLocalidad(req: Request, res: Response) {
   }
 }
 
-export { sanitizeLocalidadInput, CU19CrearLocalidad, showLocalidad };
+async function getOne(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+    const localidad = await em.findOne(Localidad, id);
+    if (localidad === null) {
+      res.status(404).json({ mesagge: 'Localidad not found' });
+      return;
+    }
+    res.status(200).json({ message: 'Mostrar localidad', data: localidad });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+export {
+  sanitizeLocalidadInput,
+  crearLocalidad,
+  mostrarLocalidad,
+  editarLocalidad,
+  eliminarLocalidad,
+  getOne,
+};

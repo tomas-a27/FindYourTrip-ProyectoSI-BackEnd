@@ -1,11 +1,17 @@
 import { Router } from 'express';
 import {
-  CU19CrearLocalidad,
+  crearLocalidad,
+  editarLocalidad,
+  eliminarLocalidad,
   sanitizeLocalidadInput,
-  showLocalidad,
+  mostrarLocalidad,
+  getOne,
 } from './localidad.controller.js';
 
 export const localidadRouter = Router();
 
-localidadRouter.post('/', sanitizeLocalidadInput, CU19CrearLocalidad);
-localidadRouter.get('/', showLocalidad);
+localidadRouter.post('/', sanitizeLocalidadInput, crearLocalidad);
+localidadRouter.get('/', mostrarLocalidad);
+localidadRouter.patch('/:id', sanitizeLocalidadInput, editarLocalidad);
+localidadRouter.delete('/:id', eliminarLocalidad);
+localidadRouter.get('/:id', getOne);

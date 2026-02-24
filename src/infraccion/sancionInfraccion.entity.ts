@@ -17,5 +17,5 @@ export class SancionInfraccion {
   sancion!: Sancion;
 
   @ManyToMany({ entity: () => Infraccion, owner: true })
-  sanciones = new Collection<Infraccion>(this);
+  infracciones = new Collection<Infraccion>(this);
 }

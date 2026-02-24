@@ -8,7 +8,7 @@ export const orm = await MikroORM.init({
   entitiesTs: ['src/**/*.entity.ts'],
   dbName: 'findyourtripDB',
   driver: MySqlDriver, //me pide usar esto
-  clientUrl: `mysql://root:${process.env.DB_PASSWORD}@localhost:3306/findyourtripDB`,
+  clientUrl: process.env.DATABASE_URL,
   highlighter: new SqlHighlighter(),
   debug: true,
   schemaGenerator: {
@@ -22,8 +22,8 @@ export const orm = await MikroORM.init({
 export const syncSchema = async () => {
   const generator = orm.getSchemaGenerator();
     
-  await generator.dropSchema()
-  await generator.createSchema()
+  // await generator.dropSchema()
+  // await generator.createSchema()
 
   await generator.updateSchema();
 };

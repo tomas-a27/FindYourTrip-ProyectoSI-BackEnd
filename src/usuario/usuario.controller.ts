@@ -2,6 +2,7 @@ import {Request, Response, NextFunction} from 'express'
 import { orm } from "../shared/db/orm.js";
 import { Usuario } from "./usuario.entity.js";
 import { TipoDocumento, EstadoUsuario } from '../shared/enums.js';
+import jwt from 'jsonwebtoken';
 
 const em = orm.em
 em.getRepository(Usuario)
@@ -57,11 +58,11 @@ async function findOne(req: Request, res: Response) {
         }
         res.status(500).json({message: error.message})
     }
-   
+
 }
 
 async function CU01RegistrarUsuario(req: Request, res: Response) {
-     try {
+    try {
         const userData = req.body.sanitizedInput;
 
         // Verificar si el usuario ya existe
@@ -170,8 +171,67 @@ async function CU02EditarPasajero(req: Request, res: Response) {
 }
 
 function esEmailValido(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
 }
 
-export  { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario, CU02EditarPasajero}
+async function loginUsuario(req: Request, res: Response) {
+    try {
+        const { email, contrasenaUsuario } = req.body;
+
+        if (!email || !contrasenaUsuario) {
+            return res.status(400).json({ message: 'Email y contraseña son requeridos' });
+        }
+
+        const usuario = await em.findOne(Usuario, 
+            { email }, 
+            { populate: ['contrasenaUsuario'] });
+
+        if (!usuario) {
+            return res.status(401).json({ message: 'Credenciales inválidas' });
+        }
+
+        // Validar que el usuario no esté inhabilitado
+        if (usuario.estadoUsuario === EstadoUsuario.INHABILITADO) {
+            return res.status(403).json({ message: 'Usuario inhabilitado por el administrador' });
+        }
+
+        const contrasenaHasheada = Usuario.hashPassword(contrasenaUsuario);
+        
+        if (usuario.contrasenaUsuario !== contrasenaHasheada) {
+            return res.status(401).json({ message: 'Credenciales inválidas' });
+        }
+
+        // Obtener la clave secreta del entorno 
+        const secretKey = process.env.JWT_SECRET;
+
+        if (!secretKey) {
+            console.error('ERROR CRÍTICO: Falta JWT_SECRET en el archivo .env');
+            return res.status(500).json({ message: 'Error de configuración en el servidor' });
+        }
+
+        // generar token , expiración de 2 horas
+        const token = jwt.sign(
+            { idUsuario: usuario.idUsuario, tipoUsuario: usuario.tipoUsuario },
+            secretKey, 
+            { expiresIn: '2h' }
+        );
+
+        res.status(200).json({
+            message: 'Login exitoso',
+            token: token,
+            data: {
+                idUsuario: usuario.idUsuario,
+                nombre: usuario.nombreUsuario,
+                apellido: usuario.apellidoUsuario,
+                email: usuario.email,
+                tipoUsuario: usuario.tipoUsuario
+            }
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+export { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario, CU02EditarPasajero, loginUsuario }

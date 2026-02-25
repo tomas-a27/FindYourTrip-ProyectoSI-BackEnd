@@ -221,6 +221,9 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response){
             if (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))
                 return res.status(400).json({ message: `El campo ${key} no puede estar vacio`})
             }
+        if (userData.vehiculo.cantLugares <= 0){
+        return res.status(400).json({message: 'La cantidad de lugares libres debe ser mayor a 0'})
+    }
         //
         const patente = userData.vehiculo.patente
         const vehiculoRepetido = await em.findOne(Vehiculo, {patente})

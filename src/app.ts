@@ -2,10 +2,11 @@ import express from 'express';
 import 'reflect-metadata';
 import { orm, syncSchema } from './shared/db/orm.js';
 import { RequestContext } from '@mikro-orm/core';
-import { localidadRouter } from './localidad/localidad.routes.js';
 import cors from 'cors';
 
+import { localidadRouter } from './localidad/localidad.routes.js';
 import { usuarioRouter } from './usuario/usuario.routes.js'
+import { vehiculoRouter } from './usuario/vehiculo/vehiculo.routes.js';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use((req, res, next) => {
 
 app.use('/api/localidad', localidadRouter);
 app.use('/api/usuario', usuarioRouter);
+app.use('/api/vehiculo', vehiculoRouter);
 
 app.use((_, res) => {
   return res.status(404).send({ message: 'Resource not found' });

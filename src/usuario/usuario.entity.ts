@@ -1,72 +1,83 @@
-import { Entity, PrimaryKey, Property, OneToMany, Cascade, Collection, Enum} from '@mikro-orm/core';
-import { Vehiculo } from './vehiculo/vehiculo.entity.js';
-import { EstadoUsuario, TipoDocumento, EstadoConductor, TipoUsuario } from '../shared/enums.js'
+import {
+  Entity,
+  PrimaryKey,
+  Property,
+  OneToMany,
+  Cascade,
+  Collection,
+  Enum,
+} from '@mikro-orm/core';
+import { Vehiculo } from './vehiculo.entity.js';
+import {
+  EstadoUsuario,
+  TipoDocumento,
+  EstadoConductor,
+  TipoUsuario,
+} from '../shared/enums.js';
 import crypto from 'crypto';
-
 
 @Entity()
 export class Usuario {
+  @PrimaryKey()
+  idUsuario!: number;
 
-    @PrimaryKey()
-    idUsuario!: number
+  @Enum({ items: () => TipoUsuario, default: TipoUsuario.PASAJERO })
+  tipoUsuario!: string;
 
-    @Enum({items: ()=> TipoUsuario, default: TipoUsuario.PASAJERO})
-    tipoUsuario!: string
+  @Property()
+  nombreUsuario!: string;
 
-    @Property()
-    nombreUsuario!: string
+  @Property()
+  apellidoUsuario!: string;
 
-    @Property()
-    apellidoUsuario!: string
+  @Enum({ items: () => TipoDocumento })
+  tipoDocumento!: string;
 
-    @Enum({ items: () => TipoDocumento })
-    tipoDocumento!: string
+  @Property()
+  nroDocumento!: string;
 
-    @Property()
-    nroDocumento!: string
+  @Property({ unique: true, nullable: false })
+  email!: string;
 
-    @Property({ unique: true, nullable: false })
-    email!: string
+  @Property()
+  telefono!: string;
 
-    @Property()
-    telefono!: string
+  @Property({ hidden: true, lazy: true })
+  contrasenaUsuario!: string; //seguridad
 
-    @Property({hidden:true, lazy:true})
-    contrasenaUsuario!: string //seguridad
+  @Property()
+  generoUsuario!: string;
 
-    @Property()
-    generoUsuario!: string
+  @Property({ nullable: true })
+  calificacionPas?: number;
 
-    @Property({ nullable: true })
-    calificacionPas?: number
+  @Enum({ items: () => EstadoUsuario, default: EstadoUsuario.HABILITADO })
+  estadoUsuario!: string;
 
-    @Enum({ items: () => EstadoUsuario, default: EstadoUsuario.HABILITADO})
-    estadoUsuario!: string
+  @Property({ nullable: true })
+  nroLicenciaConductorUsuario?: string;
 
-    @Property({ nullable: true })
-    nroLicenciaConductorUsuario?: string
+  @Property({ nullable: true })
+  vigenciaLicenciaConductorUsuario?: Date;
 
-    @Property({ nullable: true })
-    vigenciaLicenciaConductorUsuario?: Date
+  @Property({ type: 'blob', nullable: true })
+  fotoLicenciaConductorUsuario?: Buffer;
 
-    @Property({ type: 'blob', nullable: true })
-    fotoLicenciaConductorUsuario?: Buffer 
+  @Property({ nullable: true })
+  calificacionConductor?: number;
 
-    @Property({ nullable: true })
-    calificacionConductor?: number
+  @Enum({ items: () => EstadoConductor, nullable: true })
+  estadoConductor?: string;
 
-    @Enum({ items: () => EstadoConductor , nullable: true })
-    estadoConductor?: string
+  @Property({ type: 'blob', nullable: true })
+  fotoPerfil?: Buffer;
 
-    @Property({ type: 'blob', nullable: true })
-    fotoPerfil?: Buffer
+  @OneToMany(() => Vehiculo, (vehiculo) => vehiculo.usuario, {
+    cascade: [Cascade.ALL],
+  })
+  vehiculos = new Collection<Vehiculo>(this);
 
-
-    @OneToMany(()=> Vehiculo, vehiculo => vehiculo.usuario, {cascade: [Cascade.ALL]})
-    vehiculos= new Collection<Vehiculo>(this)
-
-    static hashPassword(password: string) {
+  static hashPassword(password: string) {
     return crypto.createHmac('sha256', password).digest('hex');
-    }
-
+  }
 }

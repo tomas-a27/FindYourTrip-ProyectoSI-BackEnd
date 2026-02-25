@@ -5,8 +5,8 @@ import { RequestContext } from '@mikro-orm/core';
 import cors from 'cors';
 
 import { localidadRouter } from './localidad/localidad.routes.js';
-import { usuarioRouter } from './usuario/usuario.routes.js'
-import { vehiculoRouter } from './usuario/vehiculo/vehiculo.routes.js';
+import { usuarioRouter } from './usuario/usuario.routes.js';
+import { vehiculoRouter } from './usuario/vehiculo.routes.js';
 
 const app = express();
 

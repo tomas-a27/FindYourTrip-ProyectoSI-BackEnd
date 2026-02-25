@@ -13,5 +13,12 @@ export enum EstadoUsuario {
 
 export enum EstadoConductor{
   PENDIENTE = 'pendiente',
-  APROBADO = 'aprobado' //chequear si era asi
+  APROBADO = 'aprobado', //chequear si era asi
+  DENEGADO = 'denegado'
+}
+
+export enum TipoUsuario{
+  PASAJERO = 'pasajero',
+  CONDUCTOR = 'conductor',
+  ADMINISTRADOR = 'administrador'
 }

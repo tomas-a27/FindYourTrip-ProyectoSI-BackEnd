@@ -2,7 +2,7 @@ import {Request, Response, NextFunction} from 'express'
 import { orm } from "../shared/db/orm.js";
 import { wrap } from '@mikro-orm/core';
 import { Usuario } from "./usuario.entity.js";
-import { TipoDocumento, EstadoUsuario, EstadoConductor } from '../shared/enums.js';
+import { TipoDocumento, EstadoUsuario, EstadoConductor, TipoUsuario } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo/vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
 
@@ -115,7 +115,7 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
                 })
             }
         }
-
+        //si es por seguridad, quitar tipoUsuario antes de crearlo.
         const usuario = em.create(Usuario, userData)
         await em.flush()
 
@@ -222,6 +222,11 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response){
                 return res.status(400).json({ message: `El campo ${key} no puede estar vacio`})
             }
         //
+        const patente = userData.vehiculo.patente
+        const vehiculoRepetido = await em.findOne(Vehiculo, {patente})
+        if (vehiculoRepetido){
+            return res.status(409).json({ message: `ya existe un vehiculo con la patente ${patente}`})
+        }
 
         userData.estadoConductor = EstadoConductor.PENDIENTE;
 
@@ -253,6 +258,35 @@ async function obtenerConductoresPendientes(req: Request, res: Response){
     }
     
 }
+
+async function CU04AprobarPasajeroComoConductor(req: Request, res: Response){
+    //falta logica de permisos
+    //falta mostrar reportes(?)
+    try{
+        const userData = req.body.sanitizedInput;
+        const idUsuario = Number.parseInt(req.params.id as string);
+        const usuario = await em.findOneOrFail(Usuario, { idUsuario } );
+
+        if(!(usuario.estadoConductor === EstadoConductor.PENDIENTE)){
+            return res.status(409).json({message: 
+                        'El usuario no tiene pendiente ninguna solicitud de convertirse en Conductor'})
+        }
+
+        if (userData.estadoConductor === EstadoConductor.APROBADO){
+            userData.tipoUsuario = TipoUsuario.CONDUCTOR
+        }
+        //en caso de ser denegado podriamos borrar los datos de licencia cargados. Por ahora innecesario
+
+        Object.assign(usuario, userData)
+            await em.flush()
+            res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuario })
+    } catch (error:any) {
+        if (error.status === 404) 
+            {res.status(404).json({ message: 'No se encontro el usuario'})}
+        res.status(500).json({message: error.message})
+    }
+
+} 
  
 
 async function loginUsuario(req: Request, res: Response) {
@@ -316,4 +350,5 @@ async function loginUsuario(req: Request, res: Response) {
 
 export { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario,
         CU02EditarPasajero, CU03SolicitarPasajeroComoConductor,
-        obtenerConductoresPendientes, loginUsuario }
+        obtenerConductoresPendientes, loginUsuario,
+        CU04AprobarPasajeroComoConductor }

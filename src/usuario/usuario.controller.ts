@@ -26,6 +26,9 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
     contrasenaUsuario: req.body.contrasenaUsuario
       ? Usuario.hashPassword(req.body.contrasenaUsuario)
       : undefined,
+    contrasenaUsuarioConfirmacion: req.body.contrasenaUsuarioConfirmacion
+      ? Usuario.hashPassword(req.body.contrasenaUsuarioConfirmacion)
+      : undefined,
     generoUsuario: req.body.generoUsuario,
     calificacionPas: req.body.calificacionPas,
     estadoUsuario: req.body.estadoUsuario,
@@ -57,6 +60,24 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
     return res.status(400).json({
       message: 'Email no válido',
     });
+  }
+  //validar nro telefono
+
+  if (isNaN(Number(req.body.sanitizedInput.telefono))) {
+    return res.status(400).json({
+      message: 'Se requiere que el teléfono se un número',
+    });
+  }
+
+  if (req.body.sanitizedInput.contrasenaUsuarioConfirmacion !== undefined) {
+    if (
+      req.body.sanitizedInput.contrasenaUsuarioConfirmacion !==
+      req.body.sanitizedInput.contrasenaUsuario
+    ) {
+      return res.status(400).json({
+        message: 'Las contraseñas deben coincidir',
+      });
+    }
   }
 
   Object.keys(req.body.sanitizedInput).forEach((key) => {

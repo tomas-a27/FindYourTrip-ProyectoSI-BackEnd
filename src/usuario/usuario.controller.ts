@@ -242,6 +242,17 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response){
     }
     
 }
+
+async function obtenerConductoresPendientes(req: Request, res: Response){
+    try{
+        const usuarios = await em.find(Usuario, { estadoConductor: EstadoConductor.PENDIENTE });
+        res.status(200).json({message: 'Buscar usuarios con solicitud para ser conductores pendiente',
+                                data: usuarios})
+    } catch (error: any){
+        res.status(500).json({ message: error.message })
+    }
+    
+}
  
 
 async function loginUsuario(req: Request, res: Response) {
@@ -303,4 +314,6 @@ async function loginUsuario(req: Request, res: Response) {
     }
 }
 
-export { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario, CU02EditarPasajero, CU03SolicitarPasajeroComoConductor, loginUsuario }
+export { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario,
+        CU02EditarPasajero, CU03SolicitarPasajeroComoConductor,
+        obtenerConductoresPendientes, loginUsuario }

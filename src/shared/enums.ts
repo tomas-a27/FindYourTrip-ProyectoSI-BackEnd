@@ -10,3 +10,8 @@ export enum EstadoUsuario {
     HABILITADO = 'habilitado',
     INHABILITADO = 'inhabilitado'
 }
+
+export enum EstadoConductor{
+  PENDIENTE = 'pendiente',
+  APROBADO = 'aprobado' //chequear si era asi
+}

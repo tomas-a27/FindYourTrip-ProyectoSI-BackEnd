@@ -1,7 +1,9 @@
 import {Request, Response, NextFunction} from 'express'
 import { orm } from "../shared/db/orm.js";
+import { wrap } from '@mikro-orm/core';
 import { Usuario } from "./usuario.entity.js";
-import { TipoDocumento, EstadoUsuario } from '../shared/enums.js';
+import { TipoDocumento, EstadoUsuario, EstadoConductor } from '../shared/enums.js';
+import { Vehiculo } from './vehiculo/vehiculo.entity.js';
 
 const em = orm.em
 em.getRepository(Usuario)
@@ -15,7 +17,9 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
         nroDocumento: req.body.nroDocumento,
         email: req.body.email,
         telefono: req.body.telefono,
-        contrasenaUsuario: Usuario.hashPassword(req.body.contrasenaUsuario),
+        contrasenaUsuario: req.body.contrasenaUsuario
+            ? Usuario.hashPassword(req.body.contrasenaUsuario) 
+            : undefined,
         generoUsuario: req.body.generoUsuario,
         calificacionPas: req.body.calificacionPas,
         estadoUsuario: req.body.estadoUsuario,
@@ -24,7 +28,15 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
         fotoLicenciaConductorUsuario: req.body.fotoLicenciaConductorUsuario,
         calificacionConductor: req.body.calificacionConductor,
         estadoConductor: req.body.estadoConductor,
-        fotoPerfil: req.body.fotoPerfil
+        fotoPerfil: req.body.fotoPerfil,
+
+        vehiculo: req.body.vehiculo?.patente? {
+                patente: req.body.vehiculo.patente?.trim().toUpperCase(),
+                marca: req.body.vehiculo.marca?.trim(),
+                modelo: req.body.vehiculo.modelo?.trim(),
+                color: req.body.vehiculo.color?.trim(),
+                cantLugares: req.body.vehiculo.cantLugares?Number(req.body.vehiculo.cantLugares):undefined
+            } : undefined
     }; 
     
     //validar mail
@@ -174,4 +186,64 @@ function esEmailValido(email: string): boolean {
   return emailRegex.test(email);
 }
 
-export  { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario, CU02EditarPasajero}
+async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response){    
+    try{
+        const idUsuario = Number.parseInt(req.params.id as string);
+        const usuario = await em.findOne(Usuario, { idUsuario } );
+        if (!usuario){
+            return res.status(404).json({message: 'No se encontro el usuario'})
+        }
+
+        if (usuario.estadoConductor === EstadoConductor.APROBADO){
+            return res.status(409).json({message: 'El usuario ya es un conductor'})
+        }
+        if (usuario.estadoConductor === EstadoConductor.PENDIENTE){
+            return res.status(409).json({message: 'El usuario ya tiene una solicitud pendiente'})
+        }
+
+        //validaciones
+        const userData = req.body.sanitizedInput
+
+        const camposObligatorios = [
+            'nroLicenciaConductorUsuario',
+            'vigenciaLicenciaConductorUsuario',
+            //'fotoLicenciaConductorUsuario',            //DESCOMENTAR LUEGO!
+            'vehiculo'
+        ]
+        //que no falten campos
+        for (const campo of camposObligatorios) {
+            if (!(campo in userData) || userData[campo] === undefined) {
+                    return res.status(400).json({ message: `El campo ${campo} es requerido` })
+            }
+        }
+        for (const [key, value] of Object.entries(userData.vehiculo)) {
+            if (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))
+                return res.status(400).json({ message: `El campo ${key} no puede estar vacio`})
+            }
+        //
+
+        userData.estadoConductor = EstadoConductor.PENDIENTE;
+
+        const { vehiculo, ...datosParaUsuario } = userData;
+        wrap(usuario).assign(datosParaUsuario);
+
+        const nuevoVehiculo = new Vehiculo();
+        wrap(nuevoVehiculo).assign(userData.vehiculo);
+        nuevoVehiculo.usuario = usuario;
+
+        em.persist(nuevoVehiculo); 
+
+        await em.flush();
+
+        return res.status(200).json({ message: "Solicitud procesada con éxito" });
+    } catch(error: any){
+        return res.status(500).json({message: error.message})
+    }
+    
+}
+
+function sanitizeVehiculo(req: Request, res: Response){}
+    
+
+
+export  { sanitizeUsuarioInput, findOne, CU01RegistrarUsuario, CU02EditarPasajero, CU03SolicitarPasajeroComoConductor}

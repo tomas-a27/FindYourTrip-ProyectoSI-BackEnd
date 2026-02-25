@@ -1,6 +1,6 @@
 import { Entity, PrimaryKey, Property, OneToMany, Cascade, Collection, Enum} from '@mikro-orm/core';
-import { Vehiculo } from '../vehiculo/vehiculo.entity.js';
-import { EstadoUsuario, TipoDocumento } from '../shared/enums.js'
+import { Vehiculo } from './vehiculo/vehiculo.entity.js';
+import { EstadoUsuario, TipoDocumento, EstadoConductor } from '../shared/enums.js'
 import crypto from 'crypto';
 
 
@@ -55,7 +55,7 @@ export class Usuario {
     @Property({ nullable: true })
     calificacionConductor?: number
 
-    @Property({ nullable: true })
+    @Enum({ items: () => EstadoConductor , nullable: true })
     estadoConductor?: string
 
     @Property({ type: 'blob', nullable: true })

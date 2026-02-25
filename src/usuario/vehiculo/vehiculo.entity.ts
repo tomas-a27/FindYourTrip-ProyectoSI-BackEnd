@@ -1,5 +1,5 @@
 import {Entity, PrimaryKey, Property, ManyToOne, Rel} from '@mikro-orm/core'
-import { Usuario } from '../usuario/usuario.entity.js'
+import { Usuario } from '../usuario.entity.js'
 
 @Entity()
 export class Vehiculo {

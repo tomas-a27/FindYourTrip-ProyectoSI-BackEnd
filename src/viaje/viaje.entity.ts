@@ -1,6 +1,7 @@
 import { Entity, Property, ManyToOne, PrimaryKey } from '@mikro-orm/core';
 import { Vehiculo } from '../usuario/vehiculo.entity.js';
 import { Usuario } from '../usuario/usuario.entity.js';
+import { Localidad } from '../localidad/localidad.entity.js';
 
 @Entity()
 export class Viaje {
@@ -34,5 +35,9 @@ export class Viaje {
   @ManyToOne(() => Usuario)
   usuarioConductor!: Usuario;
 
-  //localidad
+  @ManyToOne(() => Localidad, { nullable: false })
+  viajeOrigen!: Localidad;
+
+  @ManyToOne(() => Localidad, { nullable: false })
+  viajeDestino!: Localidad;
 }

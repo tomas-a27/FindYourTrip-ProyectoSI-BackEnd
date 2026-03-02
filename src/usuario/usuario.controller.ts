@@ -29,6 +29,9 @@ function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
     contrasenaUsuarioConfirmacion: req.body.contrasenaUsuarioConfirmacion
       ? Usuario.hashPassword(req.body.contrasenaUsuarioConfirmacion)
       : undefined,
+    contrasenaUsuarioActual: req.body.contrasenaUsuarioActual
+      ? Usuario.hashPassword(req.body.contrasenaUsuarioActual)
+      : undefined,
     generoUsuario: req.body.generoUsuario,
     calificacionPas: req.body.calificacionPas,
     estadoUsuario: req.body.estadoUsuario,
@@ -166,10 +169,18 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
 async function CU02EditarPasajero(req: Request, res: Response) {
   try {
     const idUsuario = Number(req.params.id);
-    const usuarioToUpdate = await em.findOneOrFail(Usuario, { idUsuario });
+    const usuarioToUpdate = await em.findOneOrFail(
+      Usuario,
+      { idUsuario },
+      { fields: ['*', 'contrasenaUsuario'] }
+    );
 
     if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
       return res.status(403).json({ message: 'Usuario inhabilitado' });
+    }
+
+    if (req.body.sanitizedInput.contrasenaUsuario && (usuarioToUpdate.contrasenaUsuario !== req.body.sanitizedInput.contrasenaUsuarioActual)) {
+      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
     }
 
     em.assign(usuarioToUpdate, req.body.sanitizedInput);

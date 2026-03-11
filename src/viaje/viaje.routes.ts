@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { CU07SolicitarViaje, CU05PublicarViaje, sanitizeViajeInput } from './viaje.controller.js';
+import { CU07SolicitarViaje, CU05PublicarViaje, viajeValidator } from './viaje.controller.js';
 
 export const viajeRouter = Router();
 
 viajeRouter.get('/solicitar', CU07SolicitarViaje);
-viajeRouter.post('/', sanitizeViajeInput, CU05PublicarViaje);
+viajeRouter.post('/', viajeValidator, CU05PublicarViaje);

@@ -2,39 +2,49 @@ import { Request, Response, NextFunction } from 'express';
 import { orm } from '../shared/db/orm.js';
 import { Viaje } from './viaje.entity.js';
 import { Vehiculo } from '../usuario/vehiculo.entity.js';
+import { Usuario } from '../usuario/usuario.entity.js';
+import { viajeSchema } from './viaje.schema.js';
 
 const em = orm.em;
 
-function sanitizeViajeInput(req: Request, res: Response, next: NextFunction) {
-  req.body.sanitizedInput = {
-    viajeFecha: req.body.viajeFecha,
-    viajeHorario: req.body.viajeHorario,
-    viajeCantLugares: Number.parseInt(req.body.viajeCantLugares),
-    viajeEstado: req.body.viajeEstado || 'Disponible',
-    viajeComentario: req.body.viajeComentario,
-    viajeAceptaMascotas: req.body.viajeAceptaMascotas,
-    viajePrecio: Number.parseFloat(req.body.viajePrecio),
-    vehiculo: req.body.vehiculo,
-    usuarioConductor: req.body.usuarioConductor,
-    viajeOrigen: req.body.viajeOrigen,
-    viajeDestino: req.body.viajeDestino,
-  };
+export function viajeValidator(req: Request, res: Response, next: NextFunction) {
+  const result = viajeSchema.safeParse(req.body);
 
-  if (req.body.sanitizedInput.viajeCantLugares <= 0) {
-    return res.status(400).json({ message: 'La cantidad de lugares debe ser mayor a 0' });
+  if (!result.success) {
+    return res.status(400).json({
+      message: "Datos de entrada inválidos",
+      errors: result.error.format()
+    });
   }
-//faltan agregar mas validaciones
-  Object.keys(req.body.sanitizedInput).forEach((key) => {
-    if (req.body.sanitizedInput[key] === undefined) {
-      delete req.body.sanitizedInput[key];
-    }
-  });
 
+  req.body.validatedData = result.data;
   next();
 }
 async function CU05PublicarViaje(req: Request, res: Response) {
   try {
-    const datosViaje = req.body.sanitizedInput;
+    const datosViaje = req.body.validatedData;
+
+    const conductor = await em.findOne(Usuario, { idUsuario: datosViaje.usuarioConductor });
+
+    if (!conductor) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+    if (conductor.tipoUsuario !== 'conductor') {
+      return res.status(403).json({
+        message: "No tenés permisos de conductor. Por favor, registrate como tal."
+      });
+    }
+    if (conductor.estadoUsuario === 'inhabilitado') {
+      return res.status(403).json({
+        message: "Tu cuenta de usuario se encuentra inhabilitada actualmente."
+      });
+    }
+    if (conductor.estadoConductor !== 'aprobado') {
+      const mensaje = conductor.estadoConductor === 'pendiente'
+        ? "Tu registro de conductor aún está pendiente de aprobación."
+        : "Tu solicitud de conductor ha sido denegada.";
+      return res.status(403).json({ message: mensaje });
+    }
 
     const vehiculoDoc = await em.findOne(Vehiculo, { patente: datosViaje.vehiculo });
 
@@ -43,13 +53,15 @@ async function CU05PublicarViaje(req: Request, res: Response) {
     }
 
     if (datosViaje.viajeCantLugares > vehiculoDoc.cantLugares) {
-      return res.status(400).json({ 
-        message: `Error: No podés ofrecer ${datosViaje.viajeCantLugares} lugares porque tu vehículo solo tiene capacidad para ${vehiculoDoc.cantLugares}.` 
+      return res.status(400).json({
+        message: `Error: No podés ofrecer ${datosViaje.viajeCantLugares} lugares porque tu vehículo solo tiene capacidad para ${vehiculoDoc.cantLugares}.`
       });
     }
 
     const hoy = new Date();
-    if (new Date(datosViaje.viajeFecha) < hoy) {
+    hoy.setHours(0, 0, 0, 0);
+
+    if (datosViaje.viajeFecha < hoy) {
       return res.status(400).json({ message: 'No podés publicar un viaje con fecha pasada.' });
     }
 
@@ -78,4 +90,4 @@ async function CU07SolicitarViaje(req: Request, res: Response) {
   }
 }
 
-export { sanitizeViajeInput, CU07SolicitarViaje, CU05PublicarViaje };
+export { CU07SolicitarViaje, CU05PublicarViaje };

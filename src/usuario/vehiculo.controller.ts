@@ -99,4 +99,21 @@ async function CU16EditarVehiculo(req: Request, res: Response) {
   }
 }
 
-export { sanitizeVehiculoInput, CU15CrearVehiculo, CU16EditarVehiculo };
+async function CU17EliminarVehiculo(req: Request, res: Response) {
+  try{
+    const patente = (req.params.patente as string).toUpperCase();
+    const vehiculo = await em.findOne(Vehiculo, {patente});
+    if (!vehiculo) {
+      return res.status(404).json({message: `No se encuentra el vehiculo con patente ${patente}`})
+    }
+    await em.remove(vehiculo).flush();
+    return res.status(200).json({ message: 'vehiculo eliminado con exito' })
+
+  } catch(error: any) {
+    return res.status(500).json({message: error.mesagge})
+  }
+}
+
+export { sanitizeVehiculoInput, CU15CrearVehiculo, CU16EditarVehiculo,
+        CU17EliminarVehiculo
+ };

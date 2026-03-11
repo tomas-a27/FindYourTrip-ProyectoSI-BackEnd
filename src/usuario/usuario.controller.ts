@@ -90,7 +90,6 @@ async function CU02EditarPasajero(req: Request, res: Response) {
   }
 }
 
-
 async function getUsuarioById(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
@@ -104,24 +103,52 @@ async function getUsuarioById(req: Request, res: Response) {
   }
 }
 
-export function solicitudConductorValidator(req: Request, res: Response, next: NextFunction) {
+function solicitudConductorValidator(req: Request, res: Response, next: NextFunction) {
+  // === Procesar FormData y Multer ===
+  
+  if (typeof req.body.vehiculo === 'string') {
+    try {
+      req.body.vehiculo = JSON.parse(req.body.vehiculo);
+    } catch (e) {
+      console.error("Error al parsear el vehiculo JSON", e);
+    }
+  }
+
+  // 1. Guardamos los buffers en variables temporales
+  let bufferPerfil: Buffer | undefined;
+  let bufferLicencia: Buffer | undefined;
+
+  // Si Multer capturó archivos
+  if (req.files) {
+    const archivos = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (archivos.fotoPerfil) {
+      bufferPerfil = archivos.fotoPerfil[0].buffer;
+      req.body.fotoPerfil = "foto_ok"; // Texto temporal para engañar a Zod
+    }
+    if (archivos.fotoLicencia) {
+      bufferLicencia = archivos.fotoLicencia[0].buffer;
+      req.body.fotoLicenciaConductorUsuario = "foto_ok"; // Texto temporal
+    }
+  }
+
+  // 2. Pasamos la validación de Zod (ahora va a ver textos y no va a fallar)
   const result = solicitudConductorSchema.safeParse(req.body);
 
   if (!result.success) {
-    // Obtenemos los errores específicos por campo para ayudar al usuario
     const erroresDetallados = result.error.flatten().fieldErrors;
 
     return res.status(400).json({
-      // Mensaje general del Paso 2.b y 2.c del CU03
       message: "No se ingresaron todos los datos o los formatos son incorrectos",
       detalles: erroresDetallados
     });
   }
 
   req.body.validatedData = result.data;
+  if (bufferPerfil) req.body.validatedData.fotoPerfil = bufferPerfil;
+  if (bufferLicencia) req.body.validatedData.fotoLicenciaConductorUsuario = bufferLicencia;
+
   next();
 }
-
 async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
@@ -131,13 +158,10 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
       return res.status(404).json({ message: 'No se encontro el usuario' });
     }
 
-    // --- PRECONDICIONES (CU03) ---
-    // El pasajero debe estar habilitado [cite: 6]
     if (usuario.estadoUsuario === 'inhabilitado') {
       return res.status(403).json({ message: "El usuario se encuentra inhabilitado" });
     }
 
-    // Validar si ya es conductor o tiene trámite pendiente
     if (usuario.estadoConductor === EstadoConductor.APROBADO) {
       return res.status(409).json({ message: 'El usuario ya es un conductor' });
     }
@@ -145,11 +169,8 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
       return res.status(409).json({ message: 'El usuario ya tiene una solicitud pendiente' });
     }
 
-    // Obtenemos los datos ya validados por Zod
     const { vehiculo, ...datosLicencia } = req.body.validatedData;
 
-    // --- VALIDACIÓN DE NEGOCIO ---
-    // Verificar si la patente ya existe en el sistema
     const vehiculoRepetido = await em.findOne(Vehiculo, { patente: vehiculo.patente });
     if (vehiculoRepetido) {
       return res.status(409).json({
@@ -157,14 +178,11 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
       });
     }
 
-    // --- REGISTRO DE SOLICITUD (Paso 2) ---
-    // Actualizamos al Usuario con sus datos de licencia y estado "pendiente" [cite: 35, 46]
     wrap(usuario).assign({
       ...datosLicencia,
       estadoConductor: EstadoConductor.PENDIENTE
     });
 
-    // Creamos la nueva entidad Vehículo asociada al usuario 
     const nuevoVehiculo = em.create(Vehiculo, {
       ...vehiculo,
       usuario: usuario
@@ -172,7 +190,6 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
 
     await em.flush();
 
-    // Mensaje de éxito final según el PDF [cite: 39]
     return res.status(200).json({
       message: 'Hemos enviado su solicitud para ser conductor. Proximamente se le informará si fue aceptada'
     });
@@ -197,10 +214,8 @@ async function obtenerConductoresPendientes(req: Request, res: Response) {
 }
 
 async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
-  //falta logica de permisos
-  //falta mostrar reportes(?)
   try {
-    const userData = req.body.sanitizedInput;
+    const userData = req.body.validatedData || req.body; 
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOneOrFail(Usuario, { idUsuario });
 
@@ -214,7 +229,6 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     if (userData.estadoConductor === EstadoConductor.APROBADO) {
       userData.tipoUsuario = TipoUsuario.CONDUCTOR;
     }
-    //en caso de ser denegado podriamos borrar los datos de licencia cargados. Por ahora innecesario
 
     Object.assign(usuario, userData);
     await em.flush();
@@ -222,10 +236,11 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
       .status(200)
       .json({ message: 'El campo se actualizó correctamente', data: usuario });
   } catch (error: any) {
-    if (error.status === 404) {
+    if (error.status === 404 || error.name === 'NotFoundError') {
       res.status(404).json({ message: 'No se encontro el usuario' });
+    } else {
+      res.status(500).json({ message: error.message });
     }
-    res.status(500).json({ message: error.message });
   }
 }
 
@@ -249,7 +264,6 @@ async function loginUsuario(req: Request, res: Response) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Validar que el usuario no esté inhabilitado
     if (usuario.estadoUsuario === EstadoUsuario.INHABILITADO) {
       return res
         .status(403)
@@ -262,7 +276,6 @@ async function loginUsuario(req: Request, res: Response) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Obtener la clave secreta del entorno
     const secretKey = process.env.JWT_SECRET;
 
     if (!secretKey) {
@@ -272,7 +285,6 @@ async function loginUsuario(req: Request, res: Response) {
         .json({ message: 'Error de configuración en el servidor' });
     }
 
-    // generar token , expiración de 2 horas
     const token = jwt.sign(
       { idUsuario: usuario.idUsuario, tipoUsuario: usuario.tipoUsuario },
       secretKey,
@@ -295,8 +307,10 @@ async function loginUsuario(req: Request, res: Response) {
   }
 }
 
+
 export {
   usuarioValidator,
+  solicitudConductorValidator,
   getUsuarioById,
   CU01RegistrarUsuario,
   CU02EditarPasajero,

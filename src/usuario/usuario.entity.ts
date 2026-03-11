@@ -60,7 +60,7 @@ export class Usuario {
   @Property({ nullable: true })
   vigenciaLicenciaConductorUsuario?: Date;
 
-  @Property({ type: 'blob', nullable: true })
+  @Property({ type: 'longblob', nullable: true })
   fotoLicenciaConductorUsuario?: Buffer;
 
   @Property({ nullable: true })
@@ -69,7 +69,7 @@ export class Usuario {
   @Enum({ items: () => EstadoConductor, nullable: true })
   estadoConductor?: string;
 
-  @Property({ type: 'blob', nullable: true })
+  @Property({ type: 'longblob', nullable: true })
   fotoPerfil?: Buffer;
 
   @OneToMany(() => Vehiculo, (vehiculo) => vehiculo.usuario, {

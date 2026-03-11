@@ -22,3 +22,9 @@ export enum TipoUsuario{
   CONDUCTOR = 'conductor',
   ADMINISTRADOR = 'administrador'
 }
+
+export enum GeneroUsuario {
+  MASCULINO = 'Masculino',
+  FEMENINO = 'Femenino',
+  OTRO = 'Otro',
+}

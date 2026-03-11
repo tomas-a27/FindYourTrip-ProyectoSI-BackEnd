@@ -10,89 +10,88 @@ import {
 } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
+import { usuarioSchema, solicitudConductorSchema } from './usuario.schema.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
 
-function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
-  req.body.sanitizedInput = {
-    tipoUsuario: req.body.tipoUsuario,
-    nombreUsuario: req.body.nombreUsuario,
-    apellidoUsuario: req.body.apellidoUsuario,
-    tipoDocumento: req.body.tipoDocumento,
-    nroDocumento: req.body.nroDocumento,
-    email: req.body.email,
-    telefono: req.body.telefono,
-    contrasenaUsuario: req.body.contrasenaUsuario
-      ? Usuario.hashPassword(req.body.contrasenaUsuario)
-      : undefined,
-    contrasenaUsuarioConfirmacion: req.body.contrasenaUsuarioConfirmacion
-      ? Usuario.hashPassword(req.body.contrasenaUsuarioConfirmacion)
-      : undefined,
-    contrasenaUsuarioActual: req.body.contrasenaUsuarioActual
-      ? Usuario.hashPassword(req.body.contrasenaUsuarioActual)
-      : undefined,
-    generoUsuario: req.body.generoUsuario,
-    calificacionPas: req.body.calificacionPas,
-    estadoUsuario: req.body.estadoUsuario,
-    nroLicenciaConductorUsuario: req.body.nroLicenciaConductorUsuario,
-    vigenciaLicenciaConductorUsuario: req.body.vigenciaLicenciaConductorUsuario,
-    fotoLicenciaConductorUsuario: req.body.fotoLicenciaConductorUsuario,
-    calificacionConductor: req.body.calificacionConductor,
-    estadoConductor: req.body.estadoConductor,
-    fotoPerfil: req.body.fotoPerfil,
+function usuarioValidator(req: Request, res: Response, next: NextFunction) {
+  const result = usuarioSchema.safeParse(req.body);
 
-    vehiculo: req.body.vehiculo?.patente
-      ? {
-          patente: req.body.vehiculo.patente?.trim().toUpperCase(),
-          marca: req.body.vehiculo.marca?.trim(),
-          modelo: req.body.vehiculo.modelo?.trim(),
-          color: req.body.vehiculo.color?.trim(),
-          cantLugares: req.body.vehiculo.cantLugares
-            ? Number(req.body.vehiculo.cantLugares)
-            : undefined,
-        }
-      : undefined,
-  };
-
-  //validar mail
-  if (
-    req.body.sanitizedInput.email &&
-    !esEmailValido(req.body.sanitizedInput.email)
-  ) {
+  if (!result.success) {
     return res.status(400).json({
-      message: 'Email no válido',
+      message: "Error: El número de documento, teléfono o email no están en el formato correcto",
+      errors: result.error.format()
     });
   }
 
-  //validar nro telefono
-  if (isNaN(Number(req.body.sanitizedInput.telefono)) && req.body.sanitizedInput.telefono !== undefined) {
-    return res.status(400).json({
-      message: 'Se requiere que el teléfono se un número',
-    });
+  const data = result.data;
+  // hasheo de contraseñas
+  if (data.contrasenaUsuario) {
+    data.contrasenaUsuario = Usuario.hashPassword(data.contrasenaUsuario);
+  }
+  if (data.contrasenaUsuarioActual) {
+    data.contrasenaUsuarioActual = Usuario.hashPassword(data.contrasenaUsuarioActual);
   }
 
-  if (req.body.sanitizedInput.contrasenaUsuarioConfirmacion !== undefined) {
-    if (
-      req.body.sanitizedInput.contrasenaUsuarioConfirmacion !==
-      req.body.sanitizedInput.contrasenaUsuario
-    ) {
-      return res.status(400).json({
-        message: 'Las contraseñas deben coincidir',
-      });
-    }
-  }
-
-  Object.keys(req.body.sanitizedInput).forEach((key) => {
-    if (req.body.sanitizedInput[key] === undefined) {
-      delete req.body.sanitizedInput[key];
-    }
-  });
-
+  req.body.validatedData = data;
   next();
 }
 
-async function findOne(req: Request, res: Response) {
+async function CU01RegistrarUsuario(req: Request, res: Response) {
+  try {
+    const userData = req.body.validatedData;
+
+    const existingUser = await em.findOne(Usuario, {
+      $or: [
+        { telefono: userData.telefono },
+        { email: userData.email },
+        { tipoDocumento: userData.tipoDocumento, nroDocumento: userData.nroDocumento },
+      ],
+    });
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Ya existe un usuario registrado con ese email, ese teléfono o ese tipo y número de documento"
+      });
+    }
+
+    userData.estadoUsuario = EstadoUsuario.HABILITADO;
+    userData.tipoUsuario = TipoUsuario.PASAJERO;
+
+    const usuario = em.create(Usuario, userData);
+    await em.flush();
+
+    res.status(201).json({ message: 'El registro fue exitoso', data: usuario });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CU02EditarPasajero(req: Request, res: Response) {
+  try {
+    const idUsuario = Number(req.params.id);
+    const usuarioToUpdate = await em.findOneOrFail(Usuario, { idUsuario }, { populate: ['contrasenaUsuario'] });
+
+    if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
+      return res.status(403).json({ message: 'Usuario inhabilitado' });
+    }
+
+    const { validatedData } = req.body;
+
+    if (validatedData.contrasenaUsuario && (usuarioToUpdate.contrasenaUsuario !== validatedData.contrasenaUsuarioActual)) {
+      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
+    }
+
+    em.assign(usuarioToUpdate, validatedData);
+    await em.flush();
+    res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuarioToUpdate });
+  } catch (error: any) {
+    res.status(error.name === 'NotFoundError' ? 404 : 500).json({ message: error.message });
+  }
+}
+
+
+async function getUsuarioById(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOneOrFail(Usuario, { idUsuario });
@@ -105,172 +104,79 @@ async function findOne(req: Request, res: Response) {
   }
 }
 
-async function CU01RegistrarUsuario(req: Request, res: Response) {
-  try {
-    const userData = req.body.sanitizedInput;
+export function solicitudConductorValidator(req: Request, res: Response, next: NextFunction) {
+  const result = solicitudConductorSchema.safeParse(req.body);
 
-    // Verificar si el usuario ya existe
-    const existingUser = await em.findOne(Usuario, {
-      $or: [
-        { telefono: userData.telefono },
-        { email: userData.email },
-        {
-          tipoDocumento: userData.tipoDocumento,
-          nroDocumento: userData.nroDocumento,
-        },
-      ],
+  if (!result.success) {
+    // Obtenemos los errores específicos por campo para ayudar al usuario
+    const erroresDetallados = result.error.flatten().fieldErrors;
+
+    return res.status(400).json({
+      // Mensaje general del Paso 2.b y 2.c del CU03
+      message: "No se ingresaron todos los datos o los formatos son incorrectos",
+      detalles: erroresDetallados
     });
-
-    // Validar campos requeridos
-    const tipoDoc = req.body.sanitizedInput.tipoDocumento;
-    if (
-      tipoDoc &&
-      !Object.values(TipoDocumento).includes(tipoDoc as TipoDocumento)
-    ) {
-      return res.status(400).json({
-        message: `Tipo de documento no válido. Opciones: ${Object.values(TipoDocumento).join(', ')}`,
-      });
-    }
-
-    if (
-      req.body.sanitizedInput.tipoDocumento === 'DNI' &&
-      isNaN(Number(req.body.sanitizedInput.nroDocumento))
-    )
-      return res.status(400).json({
-        message: 'Formato de DNI no válido',
-      });
-
-    //Validar que sea unico
-    if (existingUser) {
-      if (existingUser.email === userData.email) {
-        return res.status(409).json({
-          message: 'Este email ya está registrado',
-        });
-      } else if (existingUser.telefono === userData.telefono) {
-        return res.status(409).json({
-          message: 'Ya hay una cuenta asociada a este teléfono',
-        });
-      } else {
-        return res.status(409).json({
-          message: 'Este documento ya está registrado',
-        });
-      }
-    }
-    //si es por seguridad, quitar tipoUsuario antes de crearlo.
-    const usuario = em.create(Usuario, userData);
-    await em.flush();
-
-    res.status(201).json({ message: 'usuario creado', data: usuario });
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
   }
-}
 
-async function CU02EditarPasajero(req: Request, res: Response) {
-  try {
-    const idUsuario = Number(req.params.id);
-    const usuarioToUpdate = await em.findOneOrFail(
-      Usuario,
-      { idUsuario },
-      { fields: ['*', 'contrasenaUsuario'] }
-    );
-
-    if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
-      return res.status(403).json({ message: 'Usuario inhabilitado' });
-    }
-
-    if (req.body.sanitizedInput.contrasenaUsuario && (usuarioToUpdate.contrasenaUsuario !== req.body.sanitizedInput.contrasenaUsuarioActual)) {
-      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
-    }
-
-    em.assign(usuarioToUpdate, req.body.sanitizedInput);
-    await em.flush();
-    res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuarioToUpdate });
-  } catch (error: any) {
-    if (error.name === 'NotFoundError') {
-      res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-    res.status(500).json({ message: error.message });
-  }
-}
-
-function esEmailValido(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  req.body.validatedData = result.data;
+  next();
 }
 
 async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOne(Usuario, { idUsuario });
+
     if (!usuario) {
       return res.status(404).json({ message: 'No se encontro el usuario' });
     }
 
+    // --- PRECONDICIONES (CU03) ---
+    // El pasajero debe estar habilitado [cite: 6]
+    if (usuario.estadoUsuario === 'inhabilitado') {
+      return res.status(403).json({ message: "El usuario se encuentra inhabilitado" });
+    }
+
+    // Validar si ya es conductor o tiene trámite pendiente
     if (usuario.estadoConductor === EstadoConductor.APROBADO) {
       return res.status(409).json({ message: 'El usuario ya es un conductor' });
     }
     if (usuario.estadoConductor === EstadoConductor.PENDIENTE) {
-      return res
-        .status(409)
-        .json({ message: 'El usuario ya tiene una solicitud pendiente' });
+      return res.status(409).json({ message: 'El usuario ya tiene una solicitud pendiente' });
     }
 
-    //validaciones
-    const userData = req.body.sanitizedInput;
+    // Obtenemos los datos ya validados por Zod
+    const { vehiculo, ...datosLicencia } = req.body.validatedData;
 
-    const camposObligatorios = [
-      'nroLicenciaConductorUsuario',
-      'vigenciaLicenciaConductorUsuario',
-      //'fotoLicenciaConductorUsuario',            //DESCOMENTAR LUEGO!
-      'vehiculo',
-    ];
-    //que no falten campos
-    for (const campo of camposObligatorios) {
-      if (!(campo in userData) || userData[campo] === undefined) {
-        return res
-          .status(400)
-          .json({ message: `El campo ${campo} es requerido` });
-      }
-    }
-    for (const [key, value] of Object.entries(userData.vehiculo)) {
-      if (
-        value === undefined ||
-        value === null ||
-        (typeof value === 'string' && value.trim() === '')
-      )
-        return res
-          .status(400)
-          .json({ message: `El campo ${key} no puede estar vacio` });
-    }
-    if (userData.vehiculo.cantLugares <= 0) {
-      return res
-        .status(400)
-        .json({ message: 'La cantidad de lugares libres debe ser mayor a 0' });
-    }
-    //
-    const patente = userData.vehiculo.patente;
-    const vehiculoRepetido = await em.findOne(Vehiculo, { patente });
+    // --- VALIDACIÓN DE NEGOCIO ---
+    // Verificar si la patente ya existe en el sistema
+    const vehiculoRepetido = await em.findOne(Vehiculo, { patente: vehiculo.patente });
     if (vehiculoRepetido) {
-      return res
-        .status(409)
-        .json({ message: `ya existe un vehiculo con la patente ${patente}` });
+      return res.status(409).json({
+        message: `Ya existe un vehiculo registrado con la patente ${vehiculo.patente}`
+      });
     }
 
-    userData.estadoConductor = EstadoConductor.PENDIENTE;
+    // --- REGISTRO DE SOLICITUD (Paso 2) ---
+    // Actualizamos al Usuario con sus datos de licencia y estado "pendiente" [cite: 35, 46]
+    wrap(usuario).assign({
+      ...datosLicencia,
+      estadoConductor: EstadoConductor.PENDIENTE
+    });
 
-    const { vehiculo, ...datosParaUsuario } = userData;
-    wrap(usuario).assign(datosParaUsuario);
-
-    const nuevoVehiculo = new Vehiculo();
-    wrap(nuevoVehiculo).assign(userData.vehiculo);
-    nuevoVehiculo.usuario = usuario;
-
-    em.persist(nuevoVehiculo);
+    // Creamos la nueva entidad Vehículo asociada al usuario 
+    const nuevoVehiculo = em.create(Vehiculo, {
+      ...vehiculo,
+      usuario: usuario
+    });
 
     await em.flush();
 
-    return res.status(200).json({ message: 'Solicitud procesada con éxito' });
+    // Mensaje de éxito final según el PDF [cite: 39]
+    return res.status(200).json({
+      message: 'Hemos enviado su solicitud para ser conductor. Proximamente se le informará si fue aceptada'
+    });
+
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
@@ -390,8 +296,8 @@ async function loginUsuario(req: Request, res: Response) {
 }
 
 export {
-  sanitizeUsuarioInput,
-  findOne,
+  usuarioValidator,
+  getUsuarioById,
   CU01RegistrarUsuario,
   CU02EditarPasajero,
   CU03SolicitarPasajeroComoConductor,

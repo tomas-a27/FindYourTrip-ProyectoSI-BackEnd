@@ -10,89 +10,88 @@ import {
 } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
+import { usuarioSchema } from './usuario.schema.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
 
-function sanitizeUsuarioInput(req: Request, res: Response, next: NextFunction) {
-  req.body.sanitizedInput = {
-    tipoUsuario: req.body.tipoUsuario,
-    nombreUsuario: req.body.nombreUsuario,
-    apellidoUsuario: req.body.apellidoUsuario,
-    tipoDocumento: req.body.tipoDocumento,
-    nroDocumento: req.body.nroDocumento,
-    email: req.body.email,
-    telefono: req.body.telefono,
-    contrasenaUsuario: req.body.contrasenaUsuario
-      ? Usuario.hashPassword(req.body.contrasenaUsuario)
-      : undefined,
-    contrasenaUsuarioConfirmacion: req.body.contrasenaUsuarioConfirmacion
-      ? Usuario.hashPassword(req.body.contrasenaUsuarioConfirmacion)
-      : undefined,
-    contrasenaUsuarioActual: req.body.contrasenaUsuarioActual
-      ? Usuario.hashPassword(req.body.contrasenaUsuarioActual)
-      : undefined,
-    generoUsuario: req.body.generoUsuario,
-    calificacionPas: req.body.calificacionPas,
-    estadoUsuario: req.body.estadoUsuario,
-    nroLicenciaConductorUsuario: req.body.nroLicenciaConductorUsuario,
-    vigenciaLicenciaConductorUsuario: req.body.vigenciaLicenciaConductorUsuario,
-    fotoLicenciaConductorUsuario: req.body.fotoLicenciaConductorUsuario,
-    calificacionConductor: req.body.calificacionConductor,
-    estadoConductor: req.body.estadoConductor,
-    fotoPerfil: req.body.fotoPerfil,
+function usuarioValidator(req: Request, res: Response, next: NextFunction) {
+  const result = usuarioSchema.safeParse(req.body);
 
-    vehiculo: req.body.vehiculo?.patente
-      ? {
-          patente: req.body.vehiculo.patente?.trim().toUpperCase(),
-          marca: req.body.vehiculo.marca?.trim(),
-          modelo: req.body.vehiculo.modelo?.trim(),
-          color: req.body.vehiculo.color?.trim(),
-          cantLugares: req.body.vehiculo.cantLugares
-            ? Number(req.body.vehiculo.cantLugares)
-            : undefined,
-        }
-      : undefined,
-  };
-
-  //validar mail
-  if (
-    req.body.sanitizedInput.email &&
-    !esEmailValido(req.body.sanitizedInput.email)
-  ) {
+  if (!result.success) {
     return res.status(400).json({
-      message: 'Email no válido',
+      message: "Error: El número de documento, teléfono o email no están en el formato correcto",
+      errors: result.error.format()
     });
   }
 
-  //validar nro telefono
-  if (isNaN(Number(req.body.sanitizedInput.telefono)) && req.body.sanitizedInput.telefono !== undefined) {
-    return res.status(400).json({
-      message: 'Se requiere que el teléfono se un número',
-    });
+  const data = result.data;
+  // hasheo de contraseñas
+  if (data.contrasenaUsuario) {
+    data.contrasenaUsuario = Usuario.hashPassword(data.contrasenaUsuario);
+  }
+  if (data.contrasenaUsuarioActual) {
+    data.contrasenaUsuarioActual = Usuario.hashPassword(data.contrasenaUsuarioActual);
   }
 
-  if (req.body.sanitizedInput.contrasenaUsuarioConfirmacion !== undefined) {
-    if (
-      req.body.sanitizedInput.contrasenaUsuarioConfirmacion !==
-      req.body.sanitizedInput.contrasenaUsuario
-    ) {
-      return res.status(400).json({
-        message: 'Las contraseñas deben coincidir',
-      });
-    }
-  }
-
-  Object.keys(req.body.sanitizedInput).forEach((key) => {
-    if (req.body.sanitizedInput[key] === undefined) {
-      delete req.body.sanitizedInput[key];
-    }
-  });
-
+  req.body.validatedData = data;
   next();
 }
 
-async function findOne(req: Request, res: Response) {
+async function CU01RegistrarUsuario(req: Request, res: Response) {
+  try {
+    const userData = req.body.validatedData;
+
+    const existingUser = await em.findOne(Usuario, {
+      $or: [
+        { telefono: userData.telefono },
+        { email: userData.email },
+        { tipoDocumento: userData.tipoDocumento, nroDocumento: userData.nroDocumento },
+      ],
+    });
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Ya existe un usuario registrado con ese email, ese teléfono o ese tipo y número de documento"
+      });
+    }
+
+    userData.estadoUsuario = EstadoUsuario.HABILITADO;
+    userData.tipoUsuario = TipoUsuario.PASAJERO;
+
+    const usuario = em.create(Usuario, userData);
+    await em.flush();
+
+    res.status(201).json({ message: 'El registro fue exitoso', data: usuario });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CU02EditarPasajero(req: Request, res: Response) {
+  try {
+    const idUsuario = Number(req.params.id);
+    const usuarioToUpdate = await em.findOneOrFail(Usuario, { idUsuario }, { populate: ['contrasenaUsuario'] });
+
+    if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
+      return res.status(403).json({ message: 'Usuario inhabilitado' });
+    }
+
+    const { validatedData } = req.body;
+
+    if (validatedData.contrasenaUsuario && (usuarioToUpdate.contrasenaUsuario !== validatedData.contrasenaUsuarioActual)) {
+      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
+    }
+
+    em.assign(usuarioToUpdate, validatedData);
+    await em.flush();
+    res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuarioToUpdate });
+  } catch (error: any) {
+    res.status(error.name === 'NotFoundError' ? 404 : 500).json({ message: error.message });
+  }
+}
+
+
+async function getUsuarioById(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOneOrFail(Usuario, { idUsuario });
@@ -103,100 +102,6 @@ async function findOne(req: Request, res: Response) {
     }
     res.status(500).json({ message: error.message });
   }
-}
-
-async function CU01RegistrarUsuario(req: Request, res: Response) {
-  try {
-    const userData = req.body.sanitizedInput;
-
-    // Verificar si el usuario ya existe
-    const existingUser = await em.findOne(Usuario, {
-      $or: [
-        { telefono: userData.telefono },
-        { email: userData.email },
-        {
-          tipoDocumento: userData.tipoDocumento,
-          nroDocumento: userData.nroDocumento,
-        },
-      ],
-    });
-
-    // Validar campos requeridos
-    const tipoDoc = req.body.sanitizedInput.tipoDocumento;
-    if (
-      tipoDoc &&
-      !Object.values(TipoDocumento).includes(tipoDoc as TipoDocumento)
-    ) {
-      return res.status(400).json({
-        message: `Tipo de documento no válido. Opciones: ${Object.values(TipoDocumento).join(', ')}`,
-      });
-    }
-
-    if (
-      req.body.sanitizedInput.tipoDocumento === 'DNI' &&
-      isNaN(Number(req.body.sanitizedInput.nroDocumento))
-    )
-      return res.status(400).json({
-        message: 'Formato de DNI no válido',
-      });
-
-    //Validar que sea unico
-    if (existingUser) {
-      if (existingUser.email === userData.email) {
-        return res.status(409).json({
-          message: 'Este email ya está registrado',
-        });
-      } else if (existingUser.telefono === userData.telefono) {
-        return res.status(409).json({
-          message: 'Ya hay una cuenta asociada a este teléfono',
-        });
-      } else {
-        return res.status(409).json({
-          message: 'Este documento ya está registrado',
-        });
-      }
-    }
-    //si es por seguridad, quitar tipoUsuario antes de crearlo.
-    const usuario = em.create(Usuario, userData);
-    await em.flush();
-
-    res.status(201).json({ message: 'usuario creado', data: usuario });
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
-  }
-}
-
-async function CU02EditarPasajero(req: Request, res: Response) {
-  try {
-    const idUsuario = Number(req.params.id);
-    const usuarioToUpdate = await em.findOneOrFail(
-      Usuario,
-      { idUsuario },
-      { fields: ['*', 'contrasenaUsuario'] }
-    );
-
-    if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
-      return res.status(403).json({ message: 'Usuario inhabilitado' });
-    }
-
-    if (req.body.sanitizedInput.contrasenaUsuario && (usuarioToUpdate.contrasenaUsuario !== req.body.sanitizedInput.contrasenaUsuarioActual)) {
-      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
-    }
-
-    em.assign(usuarioToUpdate, req.body.sanitizedInput);
-    await em.flush();
-    res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuarioToUpdate });
-  } catch (error: any) {
-    if (error.name === 'NotFoundError') {
-      res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-    res.status(500).json({ message: error.message });
-  }
-}
-
-function esEmailValido(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
 }
 
 async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
@@ -390,8 +295,8 @@ async function loginUsuario(req: Request, res: Response) {
 }
 
 export {
-  sanitizeUsuarioInput,
-  findOne,
+  usuarioValidator,
+  getUsuarioById,
   CU01RegistrarUsuario,
   CU02EditarPasajero,
   CU03SolicitarPasajeroComoConductor,

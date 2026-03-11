@@ -30,3 +30,22 @@ export const usuarioSchema = z.object({
   message: "Las contraseñas no coinciden",
   path: ["contrasenaUsuarioConfirmacion"]
 });
+
+
+export const solicitudConductorSchema = z.object({
+  nroLicenciaConductorUsuario: z.string().min(5, "El n° de licencia no es válido"),
+  vigenciaLicenciaConductorUsuario: z.coerce.date().refine((date) => !isNaN(date.getTime()), {
+    message: "La fecha de vencimiento es obligatoria o el formato es inválido"
+  }),
+  fotoLicenciaConductorUsuario: z.string().optional(),
+  fotoPerfil: z.string().optional(),
+  vehiculo: z.object({
+    marca: z.string().min(1, "La marca es obligatoria"),
+    modelo: z.string().min(1, "El modelo es obligatorio"),
+    color: z.string().min(1, "El color es obligatorio"),
+    patente: z.string()
+      .min(6, "La patente debe tener al menos 6 caracteres")
+      .transform(val => val.toUpperCase().replace(/\s/g, "")),
+    cantLugares: z.coerce.number().int().positive("La cantidad de lugares debe ser mayor a 0")
+  })
+});

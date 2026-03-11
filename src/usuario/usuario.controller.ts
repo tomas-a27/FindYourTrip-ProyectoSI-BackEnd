@@ -10,7 +10,7 @@ import {
 } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
-import { usuarioSchema } from './usuario.schema.js';
+import { usuarioSchema, solicitudConductorSchema } from './usuario.schema.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
@@ -104,78 +104,79 @@ async function getUsuarioById(req: Request, res: Response) {
   }
 }
 
+export function solicitudConductorValidator(req: Request, res: Response, next: NextFunction) {
+  const result = solicitudConductorSchema.safeParse(req.body);
+
+  if (!result.success) {
+    // Obtenemos los errores específicos por campo para ayudar al usuario
+    const erroresDetallados = result.error.flatten().fieldErrors;
+
+    return res.status(400).json({
+      // Mensaje general del Paso 2.b y 2.c del CU03
+      message: "No se ingresaron todos los datos o los formatos son incorrectos",
+      detalles: erroresDetallados
+    });
+  }
+
+  req.body.validatedData = result.data;
+  next();
+}
+
 async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOne(Usuario, { idUsuario });
+
     if (!usuario) {
       return res.status(404).json({ message: 'No se encontro el usuario' });
     }
 
+    // --- PRECONDICIONES (CU03) ---
+    // El pasajero debe estar habilitado [cite: 6]
+    if (usuario.estadoUsuario === 'inhabilitado') {
+      return res.status(403).json({ message: "El usuario se encuentra inhabilitado" });
+    }
+
+    // Validar si ya es conductor o tiene trámite pendiente
     if (usuario.estadoConductor === EstadoConductor.APROBADO) {
       return res.status(409).json({ message: 'El usuario ya es un conductor' });
     }
     if (usuario.estadoConductor === EstadoConductor.PENDIENTE) {
-      return res
-        .status(409)
-        .json({ message: 'El usuario ya tiene una solicitud pendiente' });
+      return res.status(409).json({ message: 'El usuario ya tiene una solicitud pendiente' });
     }
 
-    //validaciones
-    const userData = req.body.sanitizedInput;
+    // Obtenemos los datos ya validados por Zod
+    const { vehiculo, ...datosLicencia } = req.body.validatedData;
 
-    const camposObligatorios = [
-      'nroLicenciaConductorUsuario',
-      'vigenciaLicenciaConductorUsuario',
-      //'fotoLicenciaConductorUsuario',            //DESCOMENTAR LUEGO!
-      'vehiculo',
-    ];
-    //que no falten campos
-    for (const campo of camposObligatorios) {
-      if (!(campo in userData) || userData[campo] === undefined) {
-        return res
-          .status(400)
-          .json({ message: `El campo ${campo} es requerido` });
-      }
-    }
-    for (const [key, value] of Object.entries(userData.vehiculo)) {
-      if (
-        value === undefined ||
-        value === null ||
-        (typeof value === 'string' && value.trim() === '')
-      )
-        return res
-          .status(400)
-          .json({ message: `El campo ${key} no puede estar vacio` });
-    }
-    if (userData.vehiculo.cantLugares <= 0) {
-      return res
-        .status(400)
-        .json({ message: 'La cantidad de lugares libres debe ser mayor a 0' });
-    }
-    //
-    const patente = userData.vehiculo.patente;
-    const vehiculoRepetido = await em.findOne(Vehiculo, { patente });
+    // --- VALIDACIÓN DE NEGOCIO ---
+    // Verificar si la patente ya existe en el sistema
+    const vehiculoRepetido = await em.findOne(Vehiculo, { patente: vehiculo.patente });
     if (vehiculoRepetido) {
-      return res
-        .status(409)
-        .json({ message: `ya existe un vehiculo con la patente ${patente}` });
+      return res.status(409).json({
+        message: `Ya existe un vehiculo registrado con la patente ${vehiculo.patente}`
+      });
     }
 
-    userData.estadoConductor = EstadoConductor.PENDIENTE;
+    // --- REGISTRO DE SOLICITUD (Paso 2) ---
+    // Actualizamos al Usuario con sus datos de licencia y estado "pendiente" [cite: 35, 46]
+    wrap(usuario).assign({
+      ...datosLicencia,
+      estadoConductor: EstadoConductor.PENDIENTE
+    });
 
-    const { vehiculo, ...datosParaUsuario } = userData;
-    wrap(usuario).assign(datosParaUsuario);
-
-    const nuevoVehiculo = new Vehiculo();
-    wrap(nuevoVehiculo).assign(userData.vehiculo);
-    nuevoVehiculo.usuario = usuario;
-
-    em.persist(nuevoVehiculo);
+    // Creamos la nueva entidad Vehículo asociada al usuario 
+    const nuevoVehiculo = em.create(Vehiculo, {
+      ...vehiculo,
+      usuario: usuario
+    });
 
     await em.flush();
 
-    return res.status(200).json({ message: 'Solicitud procesada con éxito' });
+    // Mensaje de éxito final según el PDF [cite: 39]
+    return res.status(200).json({
+      message: 'Hemos enviado su solicitud para ser conductor. Proximamente se le informará si fue aceptada'
+    });
+
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }

@@ -3,73 +3,50 @@ import { Usuario } from './usuario.entity.js';
 import { orm } from '../shared/db/orm.js';
 import { Vehiculo } from './vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
+import { vehiculoSchema, editarVehiculoSchema } from './vehiculo.schema.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
 
-function sanitizeVehiculoInput(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
-  req.body.sanitizedVehiculoInput = {
-    patente: req.body.patente?.toUpperCase(),
-    modelo: req.body.modelo,
-    cantLugares: Number.parseInt(req.body.cantLugares),
-    color: req.body.color,
-    marca: req.body.marca,
-    usuario: req.body.usuario,
-  };
+function vehiculoValidator(req: Request, res: Response, next: NextFunction) {
+  const schema = req.method === 'POST' ? vehiculoSchema : editarVehiculoSchema;
+  const result = schema.safeParse(req.body);
 
-  if (req.body.sanitizedVehiculoInput.cantLugares <= 0) {
-    return res
-      .status(400)
-      .json({ message: 'La cantidad de lugares libres debe ser mayor a 0' });
+  if (!result.success) {
+    const erroresPorCampo = result.error.flatten().fieldErrors;
+
+    return res.status(400).json({
+      message: "Error de validación en los datos del vehículo",
+      errors: erroresPorCampo
+    });
   }
 
-  Object.keys(req.body.sanitizedVehiculoInput).forEach((key) => {
-    if (req.body.sanitizedVehiculoInput[key] === undefined) {
-      delete req.body.sanitizedVehiculoInput[key];
-    }
-  });
-
+  req.body.validatedData = result.data;
   next();
 }
 
 async function CU15CrearVehiculo(req: Request, res: Response) {
   try {
-    const camposVehiculo = Object.entries(req.body.sanitizedVehiculoInput);
-    for (const [key, value] of camposVehiculo) {
-      if (value === undefined || value === null || value === '') {
-        return res.status(400).json({
-          message: `El campo '${key}' es obligatorio y no puede estar vacío.`,
-        });
-      }
-    }
     const idUsuario = Number(req.params.id);
     const usuario = await em.findOne(Usuario, { idUsuario });
+
     if (!usuario) {
-      return res.status(404).json({ message: 'No se encontro el usuario' });
+      return res.status(404).json({ message: 'No se encontró el usuario' });
     }
-    req.body.sanitizedVehiculoInput.usuario = usuario;
 
-    const patente = req.body.patente;
-    const vehiculoRepetido = await em.findOne(Vehiculo, { patente });
+    const data = req.body.validatedData;
 
+    const vehiculoRepetido = await em.findOne(Vehiculo, { patente: data.patente });
     if (vehiculoRepetido) {
-      return res
-        .status(409)
-        .json({ message: `Ya existe un vehiculo con la patente ${patente}` });
+      return res.status(409).json({ message: `Ya existe un vehiculo con la patente ${data.patente}` });
     }
 
-    const vehiculo = em.create(Vehiculo, req.body.sanitizedVehiculoInput);
+    const vehiculo = em.create(Vehiculo, { ...data, usuario });
     await em.flush();
-    res.status(201).json({
-      message: 'Se registró el vehiculo exitosamente',
-      data: vehiculo,
-    });
+
+    res.status(201).json({ message: 'Vehiculo agregado con exito', data: vehiculo });
   } catch (error: any) {
-    res.status(500).json({ message: error.mesagge });
+    res.status(500).json({ message: error.message });
   }
 }
 
@@ -77,23 +54,15 @@ async function CU16EditarVehiculo(req: Request, res: Response) {
   const patente = (req.params.patente as string).toUpperCase();
   try {
     const vehiculo = await em.findOneOrFail(Vehiculo, { patente });
+    const datosActualizados = req.body.validatedData;
 
-    const vehiculoActualizado = req.body.sanitizedVehiculoInput;
-    const {
-      patente: patenteIgnorada,
-      usuario: usuarioIgnorado,
-      ...datosParaActualizar
-    } = req.body.sanitizedVehiculoInput;
-    em.assign(vehiculo, datosParaActualizar);
+    em.assign(vehiculo, datosActualizados);
     await em.flush();
-    res
-      .status(200)
-      .json({ message: 'vehiculo actualizado con exito', data: vehiculo });
+
+    res.status(200).json({ message: 'El vehículo se editó correctamente', data: vehiculo });
   } catch (error: any) {
     if (error.name === 'NotFoundError') {
-      return res
-        .status(404)
-        .json({ message: `No se encontró el vehículo con patente ${patente}` });
+      return res.status(404).json({ message: `No se encontró el vehículo con patente ${patente}` });
     }
     res.status(500).json({ message: error.message });
   }
@@ -107,13 +76,13 @@ async function CU17EliminarVehiculo(req: Request, res: Response) {
       return res.status(404).json({message: `No se encuentra el vehiculo con patente ${patente}`})
     }
     await em.remove(vehiculo).flush();
-    return res.status(200).json({ message: 'vehiculo eliminado con exito' })
+    return res.status(200).json({ message: 'Vehículo eliminado con éxito' })
 
   } catch(error: any) {
     return res.status(500).json({message: error.mesagge})
   }
 }
 
-export { sanitizeVehiculoInput, CU15CrearVehiculo, CU16EditarVehiculo,
+export { vehiculoValidator, CU15CrearVehiculo, CU16EditarVehiculo,
         CU17EliminarVehiculo
  };

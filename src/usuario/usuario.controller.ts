@@ -10,7 +10,7 @@ import {
 } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
-import { usuarioSchema, solicitudConductorSchema } from './usuario.schema.js';
+import { usuarioSchema, solicitudConductorSchema, loginSchema, aprobacionConductorSchema } from './usuario.schema.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
@@ -104,7 +104,6 @@ async function getUsuarioById(req: Request, res: Response) {
 }
 
 function solicitudConductorValidator(req: Request, res: Response, next: NextFunction) {
-  // === Procesar FormData y Multer ===
   
   if (typeof req.body.vehiculo === 'string') {
     try {
@@ -123,15 +122,14 @@ function solicitudConductorValidator(req: Request, res: Response, next: NextFunc
     const archivos = req.files as { [fieldname: string]: Express.Multer.File[] };
     if (archivos.fotoPerfil) {
       bufferPerfil = archivos.fotoPerfil[0].buffer;
-      req.body.fotoPerfil = "foto_ok"; // Texto temporal para engañar a Zod
+      req.body.fotoPerfil = "foto_ok"; // texto temporal para engañar a zod
     }
     if (archivos.fotoLicencia) {
       bufferLicencia = archivos.fotoLicencia[0].buffer;
-      req.body.fotoLicenciaConductorUsuario = "foto_ok"; // Texto temporal
+      req.body.fotoLicenciaConductorUsuario = "foto_ok"; // texto temporal
     }
   }
 
-  // 2. Pasamos la validación de Zod (ahora va a ver textos y no va a fallar)
   const result = solicitudConductorSchema.safeParse(req.body);
 
   if (!result.success) {
@@ -213,46 +211,72 @@ async function obtenerConductoresPendientes(req: Request, res: Response) {
   }
 }
 
+export function aprobarConductorValidator(req: Request, res: Response, next: NextFunction) {
+  const result = aprobacionConductorSchema.safeParse(req.body);
+
+  if (!result.success) {
+    return res.status(400).json({
+      message: "El estado enviado no es válido. Debe ser 'aprobado' o 'denegado'.",
+      detalles: result.error.flatten().fieldErrors
+    });
+  }
+
+  req.body.validatedData = result.data;
+  next();
+}
+
 async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
   try {
-    const userData = req.body.validatedData || req.body; 
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOneOrFail(Usuario, { idUsuario });
 
-    if (!(usuario.estadoConductor === EstadoConductor.PENDIENTE)) {
+    // Verificamos que realmente tenga una solicitud pendiente [cite: 35]
+    if (usuario.estadoConductor !== EstadoConductor.PENDIENTE) {
       return res.status(409).json({
-        message:
-          'El usuario no tiene pendiente ninguna solicitud de convertirse en Conductor',
+        message: 'El usuario no tiene ninguna solicitud de conductor pendiente',
       });
     }
 
-    if (userData.estadoConductor === EstadoConductor.APROBADO) {
-      userData.tipoUsuario = TipoUsuario.CONDUCTOR;
+    const { estadoConductor } = req.body.validatedData;
+
+    // Si el Admin aprueba, cambiamos el tipo de usuario
+    if (estadoConductor === EstadoConductor.APROBADO) {
+      usuario.tipoUsuario = TipoUsuario.CONDUCTOR;
     }
 
-    Object.assign(usuario, userData);
+    // Actualizamos el estado del trámite
+    usuario.estadoConductor = estadoConductor;
+
     await em.flush();
-    res
-      .status(200)
-      .json({ message: 'El campo se actualizó correctamente', data: usuario });
+
+    res.status(200).json({
+      message: `La solicitud ha sido ${estadoConductor} correctamente`,
+      data: usuario
+    });
+
   } catch (error: any) {
-    if (error.status === 404 || error.name === 'NotFoundError') {
-      res.status(404).json({ message: 'No se encontro el usuario' });
-    } else {
-      res.status(500).json({ message: error.message });
+    if (error.name === 'NotFoundError') {
+      return res.status(404).json({ message: 'No se encontró el usuario' });
     }
+    res.status(500).json({ message: error.message });
   }
+}
+
+function loginValidator(req: Request, res: Response, next: NextFunction) {
+  const result = loginSchema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({
+      message: "Email o contraseña con formato incorrecto",
+      errors: result.error.format()
+    });
+  }
+  req.body.validatedData = result.data;
+  next();
 }
 
 async function loginUsuario(req: Request, res: Response) {
   try {
-    const { email, contrasenaUsuario } = req.body;
-
-    if (!email || !contrasenaUsuario) {
-      return res
-        .status(400)
-        .json({ message: 'Email y contraseña son requeridos' });
-    }
+    const { email, contrasenaUsuario } = req.body.validatedData;
 
     const usuario = await em.findOne(
       Usuario,
@@ -265,9 +289,7 @@ async function loginUsuario(req: Request, res: Response) {
     }
 
     if (usuario.estadoUsuario === EstadoUsuario.INHABILITADO) {
-      return res
-        .status(403)
-        .json({ message: 'Usuario inhabilitado por el administrador' });
+      return res.status(403).json({ message: 'Usuario inhabilitado por el administrador' });
     }
 
     const contrasenaHasheada = Usuario.hashPassword(contrasenaUsuario);
@@ -277,12 +299,9 @@ async function loginUsuario(req: Request, res: Response) {
     }
 
     const secretKey = process.env.JWT_SECRET;
-
     if (!secretKey) {
       console.error('ERROR CRÍTICO: Falta JWT_SECRET en el archivo .env');
-      return res
-        .status(500)
-        .json({ message: 'Error de configuración en el servidor' });
+      return res.status(500).json({ message: 'Error de configuración en el servidor' });
     }
 
     const token = jwt.sign(
@@ -311,6 +330,7 @@ async function loginUsuario(req: Request, res: Response) {
 export {
   usuarioValidator,
   solicitudConductorValidator,
+  loginValidator,
   getUsuarioById,
   CU01RegistrarUsuario,
   CU02EditarPasajero,

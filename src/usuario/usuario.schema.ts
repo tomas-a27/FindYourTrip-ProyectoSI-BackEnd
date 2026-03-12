@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TipoDocumento, GeneroUsuario } from '../shared/enums.js';
+import { TipoDocumento, GeneroUsuario, EstadoConductor } from '../shared/enums.js';
 
 export const usuarioSchema = z.object({
   nombreUsuario: z.string().min(1, "El nombre es obligatorio"),
@@ -37,8 +37,8 @@ export const solicitudConductorSchema = z.object({
   vigenciaLicenciaConductorUsuario: z.coerce.date().refine((date) => !isNaN(date.getTime()), {
     message: "La fecha de vencimiento es obligatoria o el formato es inválido"
   }),
-  fotoLicenciaConductorUsuario: z.string().optional(),
-  fotoPerfil: z.string().optional(),
+  fotoLicenciaConductorUsuario: z.any().optional(),
+  fotoPerfil: z.any().optional(),
   vehiculo: z.object({
     marca: z.string().min(1, "La marca es obligatoria"),
     modelo: z.string().min(1, "El modelo es obligatorio"),
@@ -48,4 +48,16 @@ export const solicitudConductorSchema = z.object({
       .transform(val => val.toUpperCase().replace(/\s/g, "")),
     cantLugares: z.coerce.number().int().positive("La cantidad de lugares debe ser mayor a 0")
   })
+});
+
+
+export const loginSchema = z.object({
+  email: z.string().email("El formato del email no es válido"),
+  contrasenaUsuario: z.string().min(1, "La contraseña es obligatoria")
+});
+
+
+export const aprobacionConductorSchema = z.object({
+  estadoConductor: z.nativeEnum(EstadoConductor),
+  motivoRechazo: z.string().optional()
 });

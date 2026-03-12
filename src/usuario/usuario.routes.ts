@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { 
         usuarioValidator, 
         solicitudConductorValidator, 
+        loginValidator,
+        aprobarConductorValidator,
         getUsuarioById, 
         CU01RegistrarUsuario,
         CU02EditarPasajero, 
@@ -14,7 +16,7 @@ import { upload } from '../shared/multer.config.js'
 
 export const usuarioRouter = Router()
 
-usuarioRouter.post('/login', loginUsuario)
+usuarioRouter.post('/login', loginValidator, loginUsuario)
 usuarioRouter.get('/conductoresPendientes', obtenerConductoresPendientes)
 usuarioRouter.get('/:id', getUsuarioById)
 usuarioRouter.post('/', usuarioValidator, CU01RegistrarUsuario)
@@ -26,5 +28,5 @@ usuarioRouter.put(
         CU03SolicitarPasajeroComoConductor
 )
 
-usuarioRouter.put('/aprobarConductor/:id', usuarioValidator, CU04AprobarPasajeroComoConductor)
+usuarioRouter.put('/aprobarConductor/:id', aprobarConductorValidator, CU04AprobarPasajeroComoConductor)
 usuarioRouter.patch('/:id', usuarioValidator, CU02EditarPasajero)

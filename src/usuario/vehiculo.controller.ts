@@ -25,6 +25,16 @@ function vehiculoValidator(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+async function mostrarVehiculos(req: Request, res: Response) {
+  try {
+    const idUsuario = Number(req.params.id);
+    const vehiculos = await em.find(Vehiculo, { usuario: { idUsuario } });
+    res.status(200).json({ message: 'Show vehiculos', data: vehiculos });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 async function CU15CrearVehiculo(req: Request, res: Response) {
   try {
     const idUsuario = Number(req.params.id);
@@ -83,6 +93,4 @@ async function CU17EliminarVehiculo(req: Request, res: Response) {
   }
 }
 
-export { vehiculoValidator, CU15CrearVehiculo, CU16EditarVehiculo,
-        CU17EliminarVehiculo
- };
+export { vehiculoValidator, mostrarVehiculos, CU15CrearVehiculo, CU16EditarVehiculo, CU17EliminarVehiculo };

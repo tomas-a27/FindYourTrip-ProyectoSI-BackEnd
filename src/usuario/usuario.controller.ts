@@ -10,7 +10,12 @@ import {
 } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo.entity.js';
 import jwt from 'jsonwebtoken';
-import { usuarioSchema, solicitudConductorSchema, loginSchema, aprobacionConductorSchema } from './usuario.schema.js';
+import {
+  usuarioSchema,
+  solicitudConductorSchema,
+  loginSchema,
+  aprobacionConductorSchema,
+} from './usuario.schema.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
@@ -18,10 +23,24 @@ em.getRepository(Usuario);
 function usuarioValidator(req: Request, res: Response, next: NextFunction) {
   const result = usuarioSchema.safeParse(req.body);
 
+  /*
   if (!result.success) {
     return res.status(400).json({
       message: "Error: El número de documento, teléfono o email no están en el formato correcto",
       errors: result.error.format()
+    });
+  }
+  */
+
+  if (!result.success) {
+    const mensajes = result.error.issues.map((issue) => ({
+      campo: issue.path.join('.'),
+      mensaje: issue.message,
+    }));
+    const mensajesTexto = mensajes.map((e) => e.mensaje).join(', ');
+
+    return res.status(400).json({
+      message: `Error de validación: ${mensajesTexto}`,
     });
   }
 
@@ -31,7 +50,9 @@ function usuarioValidator(req: Request, res: Response, next: NextFunction) {
     data.contrasenaUsuario = Usuario.hashPassword(data.contrasenaUsuario);
   }
   if (data.contrasenaUsuarioActual) {
-    data.contrasenaUsuarioActual = Usuario.hashPassword(data.contrasenaUsuarioActual);
+    data.contrasenaUsuarioActual = Usuario.hashPassword(
+      data.contrasenaUsuarioActual,
+    );
   }
 
   req.body.validatedData = data;
@@ -46,12 +67,16 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
       $or: [
         { telefono: userData.telefono },
         { email: userData.email },
-        { tipoDocumento: userData.tipoDocumento, nroDocumento: userData.nroDocumento },
+        {
+          tipoDocumento: userData.tipoDocumento,
+          nroDocumento: userData.nroDocumento,
+        },
       ],
     });
     if (existingUser) {
       return res.status(409).json({
-        message: "Ya existe un usuario registrado con ese email, ese teléfono o ese tipo y número de documento"
+        message:
+          'Ya existe un usuario registrado con ese email, ese teléfono o ese tipo y número de documento',
       });
     }
 
@@ -70,7 +95,11 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
 async function CU02EditarPasajero(req: Request, res: Response) {
   try {
     const idUsuario = Number(req.params.id);
-    const usuarioToUpdate = await em.findOneOrFail(Usuario, { idUsuario }, { populate: ['contrasenaUsuario'] });
+    const usuarioToUpdate = await em.findOneOrFail(
+      Usuario,
+      { idUsuario },
+      { populate: ['contrasenaUsuario'] },
+    );
 
     if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
       return res.status(403).json({ message: 'Usuario inhabilitado' });
@@ -78,15 +107,24 @@ async function CU02EditarPasajero(req: Request, res: Response) {
 
     const { validatedData } = req.body;
 
-    if (validatedData.contrasenaUsuario && (usuarioToUpdate.contrasenaUsuario !== validatedData.contrasenaUsuarioActual)) {
+    if (
+      validatedData.contrasenaUsuario &&
+      usuarioToUpdate.contrasenaUsuario !==
+        validatedData.contrasenaUsuarioActual
+    ) {
       return res.status(401).json({ message: 'Contraseña actual incorrecta' });
     }
 
     em.assign(usuarioToUpdate, validatedData);
     await em.flush();
-    res.status(200).json({ message: 'El campo se actualizó correctamente', data: usuarioToUpdate });
+    res.status(200).json({
+      message: 'El campo se actualizó correctamente',
+      data: usuarioToUpdate,
+    });
   } catch (error: any) {
-    res.status(error.name === 'NotFoundError' ? 404 : 500).json({ message: error.message });
+    res
+      .status(error.name === 'NotFoundError' ? 404 : 500)
+      .json({ message: error.message });
   }
 }
 
@@ -103,13 +141,16 @@ async function getUsuarioById(req: Request, res: Response) {
   }
 }
 
-function solicitudConductorValidator(req: Request, res: Response, next: NextFunction) {
-  
+function solicitudConductorValidator(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   if (typeof req.body.vehiculo === 'string') {
     try {
       req.body.vehiculo = JSON.parse(req.body.vehiculo);
     } catch (e) {
-      console.error("Error al parsear el vehiculo JSON", e);
+      console.error('Error al parsear el vehiculo JSON', e);
     }
   }
 
@@ -119,14 +160,16 @@ function solicitudConductorValidator(req: Request, res: Response, next: NextFunc
 
   // Si Multer capturó archivos
   if (req.files) {
-    const archivos = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const archivos = req.files as {
+      [fieldname: string]: Express.Multer.File[];
+    };
     if (archivos.fotoPerfil) {
       bufferPerfil = archivos.fotoPerfil[0].buffer;
-      req.body.fotoPerfil = "foto_ok"; // texto temporal para engañar a zod
+      req.body.fotoPerfil = 'foto_ok'; // texto temporal para engañar a zod
     }
     if (archivos.fotoLicencia) {
       bufferLicencia = archivos.fotoLicencia[0].buffer;
-      req.body.fotoLicenciaConductorUsuario = "foto_ok"; // texto temporal
+      req.body.fotoLicenciaConductorUsuario = 'foto_ok'; // texto temporal
     }
   }
 
@@ -136,14 +179,16 @@ function solicitudConductorValidator(req: Request, res: Response, next: NextFunc
     const erroresDetallados = result.error.flatten().fieldErrors;
 
     return res.status(400).json({
-      message: "No se ingresaron todos los datos o los formatos son incorrectos",
-      detalles: erroresDetallados
+      message:
+        'No se ingresaron todos los datos o los formatos son incorrectos',
+      detalles: erroresDetallados,
     });
   }
 
   req.body.validatedData = result.data;
   if (bufferPerfil) req.body.validatedData.fotoPerfil = bufferPerfil;
-  if (bufferLicencia) req.body.validatedData.fotoLicenciaConductorUsuario = bufferLicencia;
+  if (bufferLicencia)
+    req.body.validatedData.fotoLicenciaConductorUsuario = bufferLicencia;
 
   next();
 }
@@ -157,41 +202,47 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
     }
 
     if (usuario.estadoUsuario === 'inhabilitado') {
-      return res.status(403).json({ message: "El usuario se encuentra inhabilitado" });
+      return res
+        .status(403)
+        .json({ message: 'El usuario se encuentra inhabilitado' });
     }
 
     if (usuario.estadoConductor === EstadoConductor.APROBADO) {
       return res.status(409).json({ message: 'El usuario ya es un conductor' });
     }
     if (usuario.estadoConductor === EstadoConductor.PENDIENTE) {
-      return res.status(409).json({ message: 'El usuario ya tiene una solicitud pendiente' });
+      return res
+        .status(409)
+        .json({ message: 'El usuario ya tiene una solicitud pendiente' });
     }
 
     const { vehiculo, ...datosLicencia } = req.body.validatedData;
 
-    const vehiculoRepetido = await em.findOne(Vehiculo, { patente: vehiculo.patente });
+    const vehiculoRepetido = await em.findOne(Vehiculo, {
+      patente: vehiculo.patente,
+    });
     if (vehiculoRepetido) {
       return res.status(409).json({
-        message: `Ya existe un vehiculo registrado con la patente ${vehiculo.patente}`
+        message: `Ya existe un vehiculo registrado con la patente ${vehiculo.patente}`,
       });
     }
 
     wrap(usuario).assign({
       ...datosLicencia,
-      estadoConductor: EstadoConductor.PENDIENTE
+      estadoConductor: EstadoConductor.PENDIENTE,
     });
 
     const nuevoVehiculo = em.create(Vehiculo, {
       ...vehiculo,
-      usuario: usuario
+      usuario: usuario,
     });
 
     await em.flush();
 
     return res.status(200).json({
-      message: 'Hemos enviado su solicitud para ser conductor. Proximamente se le informará si fue aceptada'
+      message:
+        'Hemos enviado su solicitud para ser conductor. Proximamente se le informará si fue aceptada',
     });
-
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
@@ -211,13 +262,18 @@ async function obtenerConductoresPendientes(req: Request, res: Response) {
   }
 }
 
-export function aprobarConductorValidator(req: Request, res: Response, next: NextFunction) {
+export function aprobarConductorValidator(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const result = aprobacionConductorSchema.safeParse(req.body);
 
   if (!result.success) {
     return res.status(400).json({
-      message: "El estado enviado no es válido. Debe ser 'aprobado' o 'denegado'.",
-      detalles: result.error.flatten().fieldErrors
+      message:
+        "El estado enviado no es válido. Debe ser 'aprobado' o 'denegado'.",
+      detalles: result.error.flatten().fieldErrors,
     });
   }
 
@@ -251,9 +307,8 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
 
     res.status(200).json({
       message: `La solicitud ha sido ${estadoConductor} correctamente`,
-      data: usuario
+      data: usuario,
     });
-
   } catch (error: any) {
     if (error.name === 'NotFoundError') {
       return res.status(404).json({ message: 'No se encontró el usuario' });
@@ -266,8 +321,8 @@ function loginValidator(req: Request, res: Response, next: NextFunction) {
   const result = loginSchema.safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({
-      message: "Email o contraseña con formato incorrecto",
-      errors: result.error.format()
+      message: 'Email o contraseña con formato incorrecto',
+      errors: result.error.format(),
     });
   }
   req.body.validatedData = result.data;
@@ -289,7 +344,9 @@ async function loginUsuario(req: Request, res: Response) {
     }
 
     if (usuario.estadoUsuario === EstadoUsuario.INHABILITADO) {
-      return res.status(403).json({ message: 'Usuario inhabilitado por el administrador' });
+      return res
+        .status(403)
+        .json({ message: 'Usuario inhabilitado por el administrador' });
     }
 
     const contrasenaHasheada = Usuario.hashPassword(contrasenaUsuario);
@@ -301,7 +358,9 @@ async function loginUsuario(req: Request, res: Response) {
     const secretKey = process.env.JWT_SECRET;
     if (!secretKey) {
       console.error('ERROR CRÍTICO: Falta JWT_SECRET en el archivo .env');
-      return res.status(500).json({ message: 'Error de configuración en el servidor' });
+      return res
+        .status(500)
+        .json({ message: 'Error de configuración en el servidor' });
     }
 
     const token = jwt.sign(
@@ -325,7 +384,6 @@ async function loginUsuario(req: Request, res: Response) {
     res.status(500).json({ message: error.message });
   }
 }
-
 
 export {
   usuarioValidator,

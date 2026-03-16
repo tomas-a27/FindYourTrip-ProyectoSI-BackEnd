@@ -3,15 +3,15 @@ import {
   crearLocalidad,
   editarLocalidad,
   eliminarLocalidad,
-  sanitizeLocalidadInput,
+  localidadValidator,
   mostrarLocalidad,
   getOne,
 } from './localidad.controller.js';
 
 export const localidadRouter = Router();
 
-localidadRouter.post('/', sanitizeLocalidadInput, crearLocalidad);
-localidadRouter.get('/', mostrarLocalidad);
-localidadRouter.patch('/:id', sanitizeLocalidadInput, editarLocalidad);
+localidadRouter.post('/', localidadValidator, crearLocalidad);
+localidadRouter.patch('/:id', localidadValidator, editarLocalidad);
 localidadRouter.delete('/:id', eliminarLocalidad);
+localidadRouter.get('/', mostrarLocalidad);
 localidadRouter.get('/:id', getOne);

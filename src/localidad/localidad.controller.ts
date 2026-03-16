@@ -1,35 +1,40 @@
 import { Request, Response, NextFunction } from 'express';
 import { orm } from '../shared/db/orm.js';
 import { Localidad } from './localidad.entity.js';
+import { localidadSchema, editarLocalidadSchema } from './localidad.schema.js';
 
 const em = orm.em;
 
-function sanitizeLocalidadInput(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
-  req.body.sanitizeLocalidadInput = {
-    codPostal: req.body.codPostal,
-    nombre: req.body.nombre,
-  };
+function localidadValidator(req: Request, res: Response, next: NextFunction) {
+  const schema = req.method === 'POST' ? localidadSchema : editarLocalidadSchema;
+  const result = schema.safeParse(req.body);
 
-  Object.keys(req.body.sanitizeLocalidadInput).forEach((key) => {
-    if (req.body.sanitizeLocalidadInput[key] === undefined) {
-      delete req.body.sanitizeLocalidadInput[key];
-    }
-  });
+  if (!result.success) {
+    return res.status(400).json({
+      message: "Los datos ingresados no están en el formato correspondiente", // Mensaje según CU021 Paso 2.c
+      errors: result.error.flatten().fieldErrors
+    });
+  }
 
+  req.body.validatedData = result.data;
   next();
 }
 
 async function crearLocalidad(req: Request, res: Response) {
   try {
-    const localidad = em.create(Localidad, req.body.sanitizeLocalidadInput);
+    const data = req.body.validatedData;
+
+    const existe = await em.findOne(Localidad, { codPostal: data.codPostal });
+    if (existe) {
+      return res.status(400).json({ message: 'Ya existe una localidad con el código postal ingresado.' });
+    }
+
+    const localidad = em.create(Localidad, data);
     await em.flush();
-    res
-      .status(200)
-      .json({ message: 'Localidad registrada con exito', data: localidad });
+
+    res.status(201).json({
+      message: '¡Localidad registrada con éxito!' 
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -39,27 +44,25 @@ async function editarLocalidad(req: Request, res: Response) {
   try {
     const id = Number(req.params.id);
     const localidadToUpdate = await em.findOneOrFail(Localidad, id);
+    const data = req.body.validatedData;
 
-    if (
-      req.body.sanitizeLocalidadInput.codPostal &&
-      req.body.sanitizeLocalidadInput.codPostal !== localidadToUpdate.codPostal
-    ) {
-      // Verificar que no exista otra localidad con ese código
-      const anotherLocalidad = await em.findOne(Localidad, {
-        codPostal: req.body.sanitizeLocalidadInput.codPostal,
-      });
-      if (anotherLocalidad) {
-        res
-          .status(400)
-          .json({ message: 'Ya existe una localidad con ese codigo' });
-        return;
+    if (data.codPostal && data.codPostal !== localidadToUpdate.codPostal) {
+      const another = await em.findOne(Localidad, { codPostal: data.codPostal });
+      if (another) {
+        return res.status(400).json({
+          message: 'Ya existe una localidad con el código postal ingresado.' // Mensaje CU021 Paso 2.d
+        });
       }
     }
-    em.assign(localidadToUpdate, req.body.sanitizeLocalidadInput);
+
+    em.assign(localidadToUpdate, data);
     await em.flush();
-    res.status(200).json({ message: 'Localidad editada con éxito' });
+
+    res.status(200).json({
+      message: 'Se editó la localidad con éxito' // Mensaje CU021 Paso 2
+    });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    res.status(error.name === 'NotFoundError' ? 404 : 500).json({ message: error.message });
   }
 }
 
@@ -71,8 +74,7 @@ async function eliminarLocalidad(req: Request, res: Response) {
     em.remove(localidadToDelete);
     await em.flush();
     res.status(200).json({
-      message: 'Localidad eliminada con éxito',
-      data: localidadToDelete,
+      message: 'La localidad se eliminó con éxito'
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -102,7 +104,7 @@ async function getOne(req: Request, res: Response) {
   }
 }
 export {
-  sanitizeLocalidadInput,
+  localidadValidator,
   crearLocalidad,
   mostrarLocalidad,
   editarLocalidad,

@@ -35,6 +35,20 @@ async function mostrarVehiculos(req: Request, res: Response) {
   }
 }
 
+async function getOne(req: Request, res: Response) {
+  try {
+    const patente = (req.params.patente as string).toUpperCase();
+    const vehiculo = await em.findOne(Vehiculo, { patente });
+    if (vehiculo === null) {
+      res.status(404).json({ message: 'Vehiculo not found' });
+      return;
+    }
+    res.status(200).json({ message: 'Mostrar vehiculo', data: vehiculo });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 async function CU15CrearVehiculo(req: Request, res: Response) {
   try {
     const idUsuario = Number(req.params.id);
@@ -93,4 +107,4 @@ async function CU17EliminarVehiculo(req: Request, res: Response) {
   }
 }
 
-export { vehiculoValidator, mostrarVehiculos, CU15CrearVehiculo, CU16EditarVehiculo, CU17EliminarVehiculo };
+export { vehiculoValidator, mostrarVehiculos, getOne, CU15CrearVehiculo, CU16EditarVehiculo, CU17EliminarVehiculo };

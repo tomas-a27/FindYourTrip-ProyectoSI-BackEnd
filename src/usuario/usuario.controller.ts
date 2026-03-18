@@ -131,7 +131,7 @@ async function CU02EditarPasajero(req: Request, res: Response) {
 async function getUsuarioById(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.id as string);
-    const usuario = await em.findOneOrFail(Usuario, { idUsuario });
+    const usuario = await em.findOneOrFail(Usuario, { idUsuario }, { populate: ['vehiculos'] });
     res.status(200).json({ message: 'usuario encontrado', data: usuario });
   } catch (error: any) {
     if (error.name === 'NotFoundError') {

@@ -58,6 +58,11 @@ async function CU15CrearVehiculo(req: Request, res: Response) {
       return res.status(404).json({ message: 'No se encontró el usuario' });
     }
 
+    if (usuario.tipoUsuario !== 'conductor') {
+      return res.status(403).json({
+        message: 'Solo los usuarios con rol de conductor pueden registrar vehículos.'
+      });
+    }
     const data = req.body.validatedData;
 
     const vehiculoRepetido = await em.findOne(Vehiculo, { patente: data.patente });

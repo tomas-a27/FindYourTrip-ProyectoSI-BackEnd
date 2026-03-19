@@ -19,7 +19,7 @@ import crypto from 'crypto';
 @Entity()
 export class Usuario {
   @PrimaryKey()
-  idUsuario!: number;
+  idUsuario?: number;
 
   @Enum({ items: () => TipoUsuario, default: TipoUsuario.PASAJERO })
   tipoUsuario!: string;

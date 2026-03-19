@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { orm, syncSchema } from './shared/db/orm.js';
 import { RequestContext } from '@mikro-orm/core';
 import cors from 'cors';
+import { seedDatabase } from './shared/seeder.js';
 
 import { localidadRouter } from './localidad/localidad.routes.js';
 import { usuarioRouter } from './usuario/usuario.routes.js';
@@ -26,12 +27,21 @@ app.use((_, res) => {
   return res.status(404).send({ message: 'Resource not found' });
 });
 
-await syncSchema();
+await initServer();
 
 const server = app.listen(3000, () => {
   console.log(`Server is running on http://localhost:3000`);
 });
 
+async function initServer() {
+  // Esquema de la base de datos
+  await syncSchema();
+
+  // Ejecutar seeding solo en desarrollo
+  if (process.env.NODE_ENV !== 'production') {
+    await seedDatabase();
+  }
+}
 /*
 const server = app.listen(process.env.PORT, () => {
   console.log(

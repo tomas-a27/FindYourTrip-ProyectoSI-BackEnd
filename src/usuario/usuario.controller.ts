@@ -16,6 +16,7 @@ import {
   loginSchema,
   aprobacionConductorSchema,
 } from './usuario.schema.js';
+import { enviarNotificacionEmail } from '../shared/resend.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
@@ -286,7 +287,6 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOneOrFail(Usuario, { idUsuario });
 
-    // Verificamos que realmente tenga una solicitud pendiente [cite: 35]
     if (usuario.estadoConductor !== EstadoConductor.PENDIENTE) {
       return res.status(409).json({
         message: 'El usuario no tiene ninguna solicitud de conductor pendiente',
@@ -295,7 +295,7 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
 
     const { estadoConductor } = req.body.validatedData;
 
-    // Si el Admin aprueba, cambiamos el tipo de usuario
+    // cambiamos el tipo de usuario
     if (estadoConductor === EstadoConductor.APROBADO) {
       usuario.tipoUsuario = TipoUsuario.CONDUCTOR;
     }
@@ -304,6 +304,18 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     usuario.estadoConductor = estadoConductor;
 
     await em.flush();
+
+    const estado = estadoConductor === 'aprobado' ? 'aprobada' : 'denegada';
+    enviarNotificacionEmail(
+      usuario.email,
+      "Novedades sobre tu solicitud para ser conductor",
+      `¡Hola, ${usuario.nombreUsuario}!`,
+      `<p>Tu solicitud para ser conductor ha sido <b>${estado}</b>.</p>
+   ${estadoConductor === 'aprobado'
+        ? '<p>Ya podés publicar viajes como conductor.</p>'
+        : '<p>Lamentablemente no hemos podido aprobar tu solicitud en este momento.</p>'
+      }`
+    ).catch(err => console.error("Error asincrónico al enviar mail:", err));
 
     res.status(200).json({
       message: `La solicitud ha sido ${estadoConductor} correctamente`,

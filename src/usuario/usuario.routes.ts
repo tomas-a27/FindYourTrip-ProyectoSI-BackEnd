@@ -10,13 +10,17 @@ import {
         CU03SolicitarPasajeroComoConductor, 
         loginUsuario,
         obtenerConductoresPendientes, 
-        CU04AprobarPasajeroComoConductor 
+        CU04AprobarPasajeroComoConductor ,
+        solicitarRecuperacionContrasena,
+        restablecerContrasena
 } from './usuario.controller.js'
 import { upload } from '../shared/multer.config.js' 
 
 export const usuarioRouter = Router()
 
 usuarioRouter.post('/login', loginValidator, loginUsuario)
+usuarioRouter.post('/recuperar-contrasena', solicitarRecuperacionContrasena);
+usuarioRouter.post('/restablecer-contrasena', restablecerContrasena);
 usuarioRouter.get('/conductoresPendientes', obtenerConductoresPendientes)
 usuarioRouter.get('/:id', getUsuarioById)
 usuarioRouter.post('/', usuarioValidator, CU01RegistrarUsuario)

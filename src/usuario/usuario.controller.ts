@@ -397,6 +397,72 @@ async function loginUsuario(req: Request, res: Response) {
   }
 }
 
+
+async function solicitarRecuperacionContrasena(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email requerido' });
+
+    const usuario = await em.findOne(Usuario, { email });
+    if (!usuario) {
+      return res.status(200).json({ message: 'Si el correo existe, se ha enviado un código' });
+    }
+
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expira = new Date();
+    expira.setMinutes(expira.getMinutes() + 45);
+
+    usuario.codigoRecuperacion = codigo;
+    usuario.expiracionCodigo = expira;
+    await em.flush();
+
+    await enviarNotificacionEmail(
+      usuario.email,
+      "Código de recuperación - Find Your Trip",
+      `Hola ${usuario.nombreUsuario}`,
+      `<p>Tu código de recuperación de contraseña es: <strong><span style="font-size: 24px; letter-spacing: 2px;">${codigo}</span></strong></p>
+      <p>Este código expira en 45 minutos.</p>`
+    );
+
+    res.status(200).json({ message: 'Si el correo existe, se ha enviado un código' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function restablecerContrasena(req: Request, res: Response) {
+  try {
+    const { email, codigo, nuevaContrasena } = req.body;
+
+    if (!email || !codigo || !nuevaContrasena) {
+      return res.status(400).json({ message: 'Faltan datos obligatorios' });
+    }
+
+    const usuario = await em.findOne(Usuario, { email });
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if (usuario.codigoRecuperacion !== codigo) {
+      return res.status(400).json({ message: 'Código incorrecto' });
+    }
+    if (!usuario.expiracionCodigo || new Date() > usuario.expiracionCodigo) {
+      return res.status(400).json({ message: 'El código ha expirado. Solicite uno nuevo.' });
+    }
+    // Actualizar contraseña
+    usuario.contrasenaUsuario = Usuario.hashPassword(nuevaContrasena);
+    // Limpiar el código usado
+    usuario.codigoRecuperacion = undefined;
+    usuario.expiracionCodigo = undefined;
+
+    await em.flush();
+
+    res.status(200).json({ message: 'Contraseña restablecida exitosamente' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 export {
   usuarioValidator,
   solicitudConductorValidator,
@@ -408,4 +474,6 @@ export {
   obtenerConductoresPendientes,
   loginUsuario,
   CU04AprobarPasajeroComoConductor,
+  solicitarRecuperacionContrasena,
+  restablecerContrasena
 };

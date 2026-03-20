@@ -33,4 +33,4 @@ usuarioRouter.put(
 )
 
 usuarioRouter.put('/aprobarConductor/:id', aprobarConductorValidator, CU04AprobarPasajeroComoConductor)
-usuarioRouter.patch('/:id', usuarioValidator, CU02EditarPasajero)
+usuarioRouter.put('/:id', usuarioValidator, CU02EditarPasajero)

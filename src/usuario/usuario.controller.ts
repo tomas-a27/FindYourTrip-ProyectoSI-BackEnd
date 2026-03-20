@@ -22,6 +22,18 @@ const em = orm.em;
 em.getRepository(Usuario);
 
 function usuarioValidator(req: Request, res: Response, next: NextFunction) {
+  let bufferPerfil: Buffer | undefined;
+
+  if (req.files) {
+    const archivos = req.files as {
+      [fieldname: string]: Express.Multer.File[];
+    };
+
+    if (archivos.fotoPerfil) {
+      bufferPerfil = archivos.fotoPerfil[0].buffer;
+    }
+  }
+
   const result = usuarioSchema.safeParse(req.body);
 
   /*
@@ -57,6 +69,11 @@ function usuarioValidator(req: Request, res: Response, next: NextFunction) {
   }
 
   req.body.validatedData = data;
+
+  if (bufferPerfil) {
+    req.body.validatedData.fotoPerfil = bufferPerfil;
+  }
+
   next();
 }
 
@@ -114,6 +131,12 @@ async function CU02EditarPasajero(req: Request, res: Response) {
         validatedData.contrasenaUsuarioActual
     ) {
       return res.status(401).json({ message: 'Contraseña actual incorrecta' });
+    }
+
+    if ('vigenciaLicenciaConductorUsuario' in validatedData || 'fotoPerfil' in validatedData) {
+      if (usuarioToUpdate.tipoUsuario !== TipoUsuario.CONDUCTOR) {
+        return res.status(403).json({ message: 'Solo los conductores pueden editar estos campos' });
+      }
     }
 
     em.assign(usuarioToUpdate, validatedData);

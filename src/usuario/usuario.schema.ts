@@ -38,7 +38,7 @@ export const solicitudConductorSchema = z.object({
     message: "La fecha de vencimiento es obligatoria o el formato es inválido"
   }),
   fotoLicenciaConductorUsuario: z.any().optional(),
-  fotoPerfil: z.any().optional(),
+  fotoPerfil: z.instanceof(Buffer).optional(),
   vehiculo: z.object({
     marca: z.string().min(1, "La marca es obligatoria"),
     modelo: z.string().min(1, "El modelo es obligatorio"),

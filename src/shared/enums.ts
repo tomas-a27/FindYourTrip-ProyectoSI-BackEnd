@@ -3,28 +3,35 @@ export enum TipoDocumento {
   PASAPORTE = 'Pasaporte',
   LC = 'LC',
   LE = 'LE',
-  CPI = 'CPI'
+  CPI = 'CPI',
 }
 
 export enum EstadoUsuario {
-    HABILITADO = 'habilitado',
-    INHABILITADO = 'inhabilitado'
+  HABILITADO = 'habilitado',
+  INHABILITADO = 'inhabilitado',
 }
 
-export enum EstadoConductor{
+export enum EstadoConductor {
   PENDIENTE = 'pendiente',
   APROBADO = 'aprobado', //chequear si era asi
-  DENEGADO = 'denegado'
+  DENEGADO = 'denegado',
 }
 
-export enum TipoUsuario{
+export enum TipoUsuario {
   PASAJERO = 'pasajero',
   CONDUCTOR = 'conductor',
-  ADMINISTRADOR = 'administrador'
+  ADMINISTRADOR = 'administrador',
 }
 
 export enum GeneroUsuario {
   MASCULINO = 'Masculino',
   FEMENINO = 'Femenino',
   OTRO = 'Otro',
+}
+
+export enum EstadoSolicitud {
+  PENDIENTE = 'Pendiente',
+  APROBADA = 'Aprobada',
+  DENEGADA = 'Denegada',
+  CANCELADA = 'Cancelada',
 }

@@ -4,6 +4,9 @@ import { Viaje } from './viaje.entity.js';
 import { Vehiculo } from '../usuario/vehiculo.entity.js';
 import { Usuario } from '../usuario/usuario.entity.js';
 import { viajeSchema } from './viaje.schema.js';
+import { SolicitudViajeSchema } from './solicitudViaje.schema.js';
+import { SolicitudViaje } from './solicitudViaje.entity.js';
+import { EstadoSolicitud } from '../shared/enums.js';
 
 const em = orm.em;
 
@@ -29,6 +32,30 @@ export function viajeValidator(
   req.body.validatedData = result.data;
   next();
 }
+
+export function solicitudViajeValidator(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const result = SolicitudViajeSchema.safeParse(req.body);
+
+  if (!result.success) {
+    const mensajes = result.error.issues.map((issue) => ({
+      campo: issue.path.join('.'),
+      mensaje: issue.message,
+    }));
+    const mensajesTexto = mensajes.map((e) => e.mensaje).join(', ');
+
+    return res.status(400).json({
+      message: `Error de validación: ${mensajesTexto}`,
+    });
+  }
+
+  req.body.validatedData = result.data;
+  next();
+}
+
 async function CU05PublicarViaje(req: Request, res: Response) {
   try {
     const datosViaje = req.body.validatedData;
@@ -93,29 +120,128 @@ async function CU05PublicarViaje(req: Request, res: Response) {
   }
 }
 
-async function CU07SolicitarViaje(req: Request, res: Response) {
+async function CU07SolicitarViaje01(req: Request, res: Response) {
   try {
-    const { origen, destino } = req.query;
-    const viajes = await em.find(
-      Viaje,
-      {
-        viajeOrigen: { nombre: { $like: `%${origen || ''}%` } },
-        viajeDestino: { nombre: { $like: `%${destino || ''}%` } },
-        viajeEstado: 'Disponible',
-      },
-      {
-        populate: [
-          'viajeOrigen',
-          'viajeDestino',
-          'usuarioConductor',
-          'vehiculo',
-        ],
-      },
+    let filter: {
+      viajeOrigen?: number;
+      viajeDestino?: number;
+      viajeFecha?: Date;
+      viajeAceptaMascotas?: boolean;
+      usuarioConductor?: any;
+      viajeEstado?: string;
+    } = { viajeEstado: 'Disponible' };
+
+    //Habria que cambiar lo de user id, el lugar donde se obtiene
+    const usuarioId = Number.parseInt(req.query.usuarioId as string);
+
+    const usuario = await em.findOne(Usuario, { idUsuario: usuarioId });
+
+    const solicitudesExclude = await em.find(SolicitudViaje, {
+      usuario: usuario,
+      estadoSolicitud: EstadoSolicitud.PENDIENTE,
+    });
+
+    if (req.query.viajeOrigen) {
+      filter.viajeOrigen = Number.parseInt(
+        req.query.viajeOrigen as string,
+      ) as number;
+    }
+    if (req.query.viajeDestino) {
+      filter.viajeDestino = Number.parseInt(
+        req.query.viajeDestino as string,
+      ) as number;
+    }
+    if (req.query.mascota) {
+      if (req.query.mascota === 'true') {
+        filter.viajeAceptaMascotas = true;
+      } else filter.viajeAceptaMascotas = false;
+    }
+    if (req.query.viajeFecha) {
+      filter.viajeFecha = new Date(req.query.viajeFecha as string);
+    }
+    if (req.query.generoConductor && req.query.generoConductor !== '') {
+      filter.usuarioConductor = {
+        generoUsuario: req.query.generoConductor as string,
+      };
+    }
+
+    const viajesBrutos = await em.find(Viaje, filter, {
+      populate: ['usuarioConductor', 'vehiculo', 'viajeOrigen', 'viajeDestino'],
+    });
+
+    console.log('viejesBrutos');
+    console.log(viajesBrutos);
+
+    const idsConSolicitud = solicitudesExclude.map((s) => s.viaje.viajeId);
+
+    const viajesPosibles = viajesBrutos.filter(
+      (viaje) =>
+        !idsConSolicitud.includes(viaje.viajeId) &&
+        viaje.usuarioConductor.idUsuario !== usuarioId, // Excluir mis propios viajes
     );
-    res.status(200).json({ data: viajes });
+
+    console.log('viajesPosibles');
+    console.log(viajesPosibles);
+
+    res.status(200).json({ data: viajesPosibles });
   } catch (error: any) {
+    console.log(error);
     res.status(500).json({ message: error.message });
   }
 }
 
-export { CU07SolicitarViaje, CU05PublicarViaje };
+async function CU07SolicitarViaje02(req: Request, res: Response) {
+  try {
+    console.log('pega back');
+    const usuario = await em.findOne(Usuario, {
+      idUsuario: req.body.validatedData.usuario,
+    });
+
+    const viaje = await em.findOne(Viaje, {
+      viajeId: req.body.validatedData.viaje,
+    });
+
+    if (!usuario) {
+      console.log('Usuario no encontrado.');
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    if (!viaje) {
+      return res.status(404).json({ message: 'Viaje no encontrado.' });
+      console.log('Viaje no encontrado.');
+    }
+
+    const datosSolictudViaje = {
+      usuario: usuario,
+      viaje: viaje,
+      solViajeFecha: req.body.validatedData.solViajeFecha,
+      estadoSolicitud: req.body.validatedData.estadoSolicitud,
+    };
+
+    const solicitudViaje = em.create(SolicitudViaje, datosSolictudViaje);
+    await em.flush();
+
+    res.status(201).json({
+      message: 'Solicitud de viaje creada con éxito',
+      data: solicitudViaje,
+    });
+  } catch (error: any) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function GetAllSolicitudes(req: Request, res: Response) {
+  try {
+    const sol = await em.findAll(SolicitudViaje);
+    res.json({ data: sol });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+export {
+  CU07SolicitarViaje02,
+  CU05PublicarViaje,
+  CU07SolicitarViaje01,
+  GetAllSolicitudes,
+};

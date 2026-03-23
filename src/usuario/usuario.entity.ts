@@ -80,4 +80,10 @@ export class Usuario {
   static hashPassword(password: string) {
     return crypto.createHmac('sha256', password).digest('hex');
   }
+
+  @Property({ nullable: true })
+  codigoRecuperacion?: string;
+
+  @Property({ nullable: true })
+  expiracionCodigo?: Date;
 }

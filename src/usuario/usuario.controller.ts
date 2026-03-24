@@ -21,6 +21,41 @@ import { enviarNotificacionEmail } from '../shared/resend.js';
 const em = orm.em;
 em.getRepository(Usuario);
 
+interface JwtPayload {
+  idUsuario: number
+  tipoUsuario: TipoUsuario
+}
+
+function verifyToken(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers['authorization']
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Token requerido' })
+  }
+
+  const token = authHeader.split(' ')[1]
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    (req as any).user = decoded
+    next()
+  } catch (error) {
+    return res.status(401).json({ message: 'Token inválido o expirado' })
+  }
+}
+
+function authorizeRoles(roles: TipoUsuario[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user
+
+    if (!user || !roles.includes(user.tipoUsuario)) {
+      return res.status(403).json({ message: 'No tenés permisos' })
+    }
+
+    next()
+  }
+}
+
 function usuarioValidator(req: Request, res: Response, next: NextFunction) {
   let bufferPerfil: Buffer | undefined;
 
@@ -112,12 +147,17 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
 
 async function CU02EditarPasajero(req: Request, res: Response) {
   try {
+    const userFromToken = (req as any).user;
     const idUsuario = Number(req.params.id);
     const usuarioToUpdate = await em.findOneOrFail(
       Usuario,
       { idUsuario },
       { populate: ['contrasenaUsuario'] },
     );
+
+    if (userFromToken.idUsuario !== idUsuario && userFromToken.tipoUsuario !== TipoUsuario.ADMINISTRADOR) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
 
     if (usuarioToUpdate.estadoUsuario === EstadoUsuario.INHABILITADO) {
       return res.status(403).json({ message: 'Usuario inhabilitado' });
@@ -154,7 +194,13 @@ async function CU02EditarPasajero(req: Request, res: Response) {
 
 async function getUsuarioById(req: Request, res: Response) {
   try {
+    const userFromToken = (req as any).user;
     const idUsuario = Number.parseInt(req.params.id as string);
+
+    if (userFromToken.idUsuario !== idUsuario && userFromToken.tipoUsuario !== TipoUsuario.ADMINISTRADOR) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
     const usuario = await em.findOneOrFail(Usuario, { idUsuario }, { populate: ['vehiculos'] });
     res.status(200).json({ message: 'usuario encontrado', data: usuario });
   } catch (error: any) {
@@ -218,8 +264,13 @@ function solicitudConductorValidator(
 }
 async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
   try {
+    const userFromToken = (req as any).user;
     const idUsuario = Number.parseInt(req.params.id as string);
     const usuario = await em.findOne(Usuario, { idUsuario });
+
+    if (userFromToken.idUsuario !== idUsuario) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
 
     if (!usuario) {
       return res.status(404).json({ message: 'No se encontro el usuario' });
@@ -498,5 +549,7 @@ export {
   loginUsuario,
   CU04AprobarPasajeroComoConductor,
   solicitarRecuperacionContrasena,
-  restablecerContrasena
+  restablecerContrasena,
+  verifyToken,
+  authorizeRoles
 };

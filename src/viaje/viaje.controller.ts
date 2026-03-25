@@ -169,9 +169,6 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
       populate: ['usuarioConductor', 'vehiculo', 'viajeOrigen', 'viajeDestino'],
     });
 
-    console.log('viejesBrutos');
-    console.log(viajesBrutos);
-
     const idsConSolicitud = solicitudesExclude.map((s) => s.viaje.viajeId);
 
     const viajesPosibles = viajesBrutos.filter(
@@ -179,9 +176,6 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
         !idsConSolicitud.includes(viaje.viajeId) &&
         viaje.usuarioConductor.idUsuario !== usuarioId, // Excluir mis propios viajes
     );
-
-    console.log('viajesPosibles');
-    console.log(viajesPosibles);
 
     res.status(200).json({ data: viajesPosibles });
   } catch (error: any) {
@@ -192,23 +186,21 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
 
 async function CU07SolicitarViaje02(req: Request, res: Response) {
   try {
-    console.log('pega back');
     const usuario = await em.findOne(Usuario, {
       idUsuario: req.body.validatedData.usuario,
     });
 
+    console.log(req.body.validatedData.viaje);
     const viaje = await em.findOne(Viaje, {
       viajeId: req.body.validatedData.viaje,
     });
 
     if (!usuario) {
-      console.log('Usuario no encontrado.');
       return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
 
     if (!viaje) {
       return res.status(404).json({ message: 'Viaje no encontrado.' });
-      console.log('Viaje no encontrado.');
     }
 
     const datosSolictudViaje = {
@@ -226,7 +218,6 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
       data: solicitudViaje,
     });
   } catch (error: any) {
-    console.log(error);
     res.status(500).json({ message: error.message });
   }
 }
@@ -243,22 +234,26 @@ async function GetAllSolicitudes(req: Request, res: Response) {
 async function getMisSolicitudes(req: Request, res: Response) {
   try {
     const idUsuario = Number.parseInt(req.params.idUsuario as string);
-    
+
     const usuario = await em.findOne(Usuario, { idUsuario });
     if (!usuario) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    const solicitudes = await em.find(SolicitudViaje, { usuario: usuario }, {
-      populate: [
-        'viaje', 
-        'viaje.usuarioConductor', 
-        'viaje.vehiculo', 
-        'viaje.viajeOrigen', 
-        'viaje.viajeDestino'
-      ],
-      orderBy: { solViajeFecha: 'DESC' }
-    });
+    const solicitudes = await em.find(
+      SolicitudViaje,
+      { usuario: usuario },
+      {
+        populate: [
+          'viaje',
+          'viaje.usuarioConductor',
+          'viaje.vehiculo',
+          'viaje.viajeOrigen',
+          'viaje.viajeDestino',
+        ],
+        orderBy: { solViajeFecha: 'DESC' },
+      },
+    );
     res.status(200).json({ data: solicitudes });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -274,28 +269,33 @@ async function getMisPublicaciones(req: Request, res: Response) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    const viajes = await em.find(Viaje, { usuarioConductor: usuario }, {
-      populate: ['viajeOrigen', 'viajeDestino', 'vehiculo'],
-      orderBy: { viajeFecha: 'DESC', viajeHorario: 'DESC' }
-    });
+    const viajes = await em.find(
+      Viaje,
+      { usuarioConductor: usuario },
+      {
+        populate: ['viajeOrigen', 'viajeDestino', 'vehiculo'],
+        orderBy: { viajeFecha: 'DESC', viajeHorario: 'DESC' },
+      },
+    );
 
-    const viajesConOcupacion = await Promise.all(viajes.map(async (v) => {
-      const cantidadAprobadas = await em.count(SolicitudViaje, { 
-        viaje: v, 
-        estadoSolicitud: 'aprobada' 
-      });
-      return { 
-        ...v, 
-        solicitudesAprobadas: cantidadAprobadas 
-      };
-    }));
+    const viajesConOcupacion = await Promise.all(
+      viajes.map(async (v) => {
+        const cantidadAprobadas = await em.count(SolicitudViaje, {
+          viaje: v,
+          estadoSolicitud: 'aprobada',
+        });
+        return {
+          ...v,
+          solicitudesAprobadas: cantidadAprobadas,
+        };
+      }),
+    );
 
     res.status(200).json({ data: viajesConOcupacion });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 }
-
 
 export {
   CU07SolicitarViaje02,

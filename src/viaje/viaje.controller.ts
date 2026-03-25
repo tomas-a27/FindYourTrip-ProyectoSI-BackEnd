@@ -239,9 +239,69 @@ async function GetAllSolicitudes(req: Request, res: Response) {
     res.status(500).json({ message: error.message });
   }
 }
+
+async function getMisSolicitudes(req: Request, res: Response) {
+  try {
+    const idUsuario = Number.parseInt(req.params.idUsuario as string);
+    
+    const usuario = await em.findOne(Usuario, { idUsuario });
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const solicitudes = await em.find(SolicitudViaje, { usuario: usuario }, {
+      populate: [
+        'viaje', 
+        'viaje.usuarioConductor', 
+        'viaje.vehiculo', 
+        'viaje.viajeOrigen', 
+        'viaje.viajeDestino'
+      ],
+      orderBy: { solViajeFecha: 'DESC' }
+    });
+    res.status(200).json({ data: solicitudes });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function getMisPublicaciones(req: Request, res: Response) {
+  try {
+    const idUsuario = Number.parseInt(req.params.idUsuario as string);
+    const usuario = await em.findOne(Usuario, { idUsuario });
+
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const viajes = await em.find(Viaje, { usuarioConductor: usuario }, {
+      populate: ['viajeOrigen', 'viajeDestino', 'vehiculo'],
+      orderBy: { viajeFecha: 'DESC', viajeHorario: 'DESC' }
+    });
+
+    const viajesConOcupacion = await Promise.all(viajes.map(async (v) => {
+      const cantidadAprobadas = await em.count(SolicitudViaje, { 
+        viaje: v, 
+        estadoSolicitud: 'aprobada' 
+      });
+      return { 
+        ...v, 
+        solicitudesAprobadas: cantidadAprobadas 
+      };
+    }));
+
+    res.status(200).json({ data: viajesConOcupacion });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
 export {
   CU07SolicitarViaje02,
   CU05PublicarViaje,
   CU07SolicitarViaje01,
   GetAllSolicitudes,
+  getMisSolicitudes,
+  getMisPublicaciones,
 };

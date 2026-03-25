@@ -6,7 +6,12 @@ import {
   CU07SolicitarViaje01,
   solicitudViajeValidator,
   GetAllSolicitudes,
+  getMisSolicitudes,
+  getMisPublicaciones,
 } from './viaje.controller.js';
+import { verifyToken } from '../usuario/usuario.controller.js';
+
+
 import { vi } from 'zod/locales';
 
 export const viajeRouter = Router();
@@ -19,5 +24,8 @@ viajeRouter.post(
   solicitudViajeValidator,
   CU07SolicitarViaje02,
 );
+viajeRouter.get('/mis-solicitudes/:idUsuario', getMisSolicitudes);
+viajeRouter.get('/mis-publicaciones/:idUsuario', getMisPublicaciones);
+
 
 viajeRouter.get('/solicitudes', GetAllSolicitudes);

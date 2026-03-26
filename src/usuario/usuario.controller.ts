@@ -22,38 +22,38 @@ const em = orm.em;
 em.getRepository(Usuario);
 
 interface JwtPayload {
-  idUsuario: number
-  tipoUsuario: TipoUsuario
+  idUsuario: number;
+  tipoUsuario: TipoUsuario;
 }
 
 function verifyToken(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers['authorization']
+  const authHeader = req.headers['authorization'];
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token requerido' })
+    return res.status(401).json({ message: 'Token requerido' });
   }
 
-  const token = authHeader.split(' ')[1]
+  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
-    (req as any).user = decoded
-    next()
+    (req as any).user = decoded;
+    next();
   } catch (error) {
-    return res.status(401).json({ message: 'Token inválido o expirado' })
+    return res.status(401).json({ message: 'Token inválido o expirado' });
   }
 }
 
 function authorizeRoles(roles: TipoUsuario[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user
+    const user = (req as any).user;
 
     if (!user || !roles.includes(user.tipoUsuario)) {
-      return res.status(403).json({ message: 'No tenés permisos' })
+      return res.status(403).json({ message: 'No tenés permisos' });
     }
 
-    next()
-  }
+    next();
+  };
 }
 
 function usuarioValidator(req: Request, res: Response, next: NextFunction) {
@@ -155,7 +155,10 @@ async function CU02EditarPasajero(req: Request, res: Response) {
       { populate: ['contrasenaUsuario'] },
     );
 
-    if (userFromToken.idUsuario !== idUsuario && userFromToken.tipoUsuario !== TipoUsuario.ADMINISTRADOR) {
+    if (
+      userFromToken.idUsuario !== idUsuario &&
+      userFromToken.tipoUsuario !== TipoUsuario.ADMINISTRADOR
+    ) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
@@ -173,9 +176,14 @@ async function CU02EditarPasajero(req: Request, res: Response) {
       return res.status(401).json({ message: 'Contraseña actual incorrecta' });
     }
 
-    if ('vigenciaLicenciaConductorUsuario' in validatedData || 'fotoPerfil' in validatedData) {
+    if (
+      'vigenciaLicenciaConductorUsuario' in validatedData ||
+      'fotoPerfil' in validatedData
+    ) {
       if (usuarioToUpdate.tipoUsuario !== TipoUsuario.CONDUCTOR) {
-        return res.status(403).json({ message: 'Solo los conductores pueden editar estos campos' });
+        return res
+          .status(403)
+          .json({ message: 'Solo los conductores pueden editar estos campos' });
       }
     }
 
@@ -197,11 +205,18 @@ async function getUsuarioById(req: Request, res: Response) {
     const userFromToken = (req as any).user;
     const idUsuario = Number.parseInt(req.params.id as string);
 
-    if (userFromToken.idUsuario !== idUsuario && userFromToken.tipoUsuario !== TipoUsuario.ADMINISTRADOR) {
+    if (
+      userFromToken.idUsuario !== idUsuario &&
+      userFromToken.tipoUsuario !== TipoUsuario.ADMINISTRADOR
+    ) {
       return res.status(403).json({ message: 'No autorizado' });
     }
 
-    const usuario = await em.findOneOrFail(Usuario, { idUsuario }, { populate: ['vehiculos'] });
+    const usuario = await em.findOneOrFail(
+      Usuario,
+      { idUsuario },
+      { populate: ['vehiculos'] },
+    );
     res.status(200).json({ message: 'usuario encontrado', data: usuario });
   } catch (error: any) {
     if (error.name === 'NotFoundError') {
@@ -244,7 +259,7 @@ function solicitudConductorValidator(
   }
 
   const result = solicitudConductorSchema.safeParse(req.body);
-
+  /*
   if (!result.success) {
     const erroresDetallados = result.error.flatten().fieldErrors;
 
@@ -252,6 +267,18 @@ function solicitudConductorValidator(
       message:
         'No se ingresaron todos los datos o los formatos son incorrectos',
       detalles: erroresDetallados,
+    });
+  }*/
+
+  if (!result.success) {
+    const mensajes = result.error.issues.map((issue) => ({
+      campo: issue.path.join('.'),
+      mensaje: issue.message,
+    }));
+    const mensajesTexto = mensajes.map((e) => e.mensaje).join(', ');
+
+    return res.status(400).json({
+      message: `Error de validación: ${mensajesTexto}`,
     });
   }
 
@@ -382,14 +409,15 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     const estado = estadoConductor === 'aprobado' ? 'aprobada' : 'denegada';
     enviarNotificacionEmail(
       usuario.email,
-      "Novedades sobre tu solicitud para ser conductor",
+      'Novedades sobre tu solicitud para ser conductor',
       `¡Hola, ${usuario.nombreUsuario}!`,
       `<p>Tu solicitud para ser conductor ha sido <b>${estado}</b>.</p>
-   ${estadoConductor === 'aprobado'
-        ? '<p>Ya podés publicar viajes como conductor.</p>'
-        : '<p>Lamentablemente no hemos podido aprobar tu solicitud en este momento.</p>'
-      }`
-    ).catch(err => console.error("Error asincrónico al enviar mail:", err));
+   ${
+     estadoConductor === 'aprobado'
+       ? '<p>Ya podés publicar viajes como conductor.</p>'
+       : '<p>Lamentablemente no hemos podido aprobar tu solicitud en este momento.</p>'
+   }`,
+    ).catch((err) => console.error('Error asincrónico al enviar mail:', err));
 
     res.status(200).json({
       message: `La solicitud ha sido ${estadoConductor} correctamente`,
@@ -471,7 +499,6 @@ async function loginUsuario(req: Request, res: Response) {
   }
 }
 
-
 async function solicitarRecuperacionContrasena(req: Request, res: Response) {
   try {
     const { email } = req.body;
@@ -479,7 +506,9 @@ async function solicitarRecuperacionContrasena(req: Request, res: Response) {
 
     const usuario = await em.findOne(Usuario, { email });
     if (!usuario) {
-      return res.status(200).json({ message: 'Si el correo existe, se ha enviado un código' });
+      return res
+        .status(200)
+        .json({ message: 'Si el correo existe, se ha enviado un código' });
     }
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
@@ -492,13 +521,15 @@ async function solicitarRecuperacionContrasena(req: Request, res: Response) {
 
     await enviarNotificacionEmail(
       usuario.email,
-      "Código de recuperación - Find Your Trip",
+      'Código de recuperación - Find Your Trip',
       `Hola ${usuario.nombreUsuario}`,
       `<p>Tu código de recuperación de contraseña es: <strong><span style="font-size: 24px; letter-spacing: 2px;">${codigo}</span></strong></p>
-      <p>Este código expira en 45 minutos.</p>`
+      <p>Este código expira en 45 minutos.</p>`,
     );
 
-    res.status(200).json({ message: 'Si el correo existe, se ha enviado un código' });
+    res
+      .status(200)
+      .json({ message: 'Si el correo existe, se ha enviado un código' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -521,7 +552,9 @@ async function restablecerContrasena(req: Request, res: Response) {
       return res.status(400).json({ message: 'Código incorrecto' });
     }
     if (!usuario.expiracionCodigo || new Date() > usuario.expiracionCodigo) {
-      return res.status(400).json({ message: 'El código ha expirado. Solicite uno nuevo.' });
+      return res
+        .status(400)
+        .json({ message: 'El código ha expirado. Solicite uno nuevo.' });
     }
     // Actualizar contraseña
     usuario.contrasenaUsuario = Usuario.hashPassword(nuevaContrasena);
@@ -551,5 +584,5 @@ export {
   solicitarRecuperacionContrasena,
   restablecerContrasena,
   verifyToken,
-  authorizeRoles
+  authorizeRoles,
 };

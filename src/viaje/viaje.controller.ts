@@ -106,7 +106,8 @@ async function CU05PublicarViaje(req: Request, res: Response) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    if (datosViaje.viajeFecha < hoy) {
+    const fechaViajeObj = new Date(datosViaje.viajeFecha + "T00:00:00");
+    if (fechaViajeObj < hoy) {
       return res
         .status(400)
         .json({ message: 'No podés publicar un viaje con fecha pasada.' });
@@ -129,9 +130,9 @@ async function CU06CancelarViaje(req: Request, res: Response) {
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
     const ahora = new Date();
-    const fechaViaje = new Date(viaje.viajeFecha);
+    const fechaYHoraViaje = new Date(`${viaje.viajeFecha}T${viaje.viajeHorario}`);
     // calculamos la diferencia en horas
-    const difHoras = (fechaViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+    const difHoras = (fechaYHoraViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
 
     // si falta menos de 24hs, se registra como Realizado para poder calificar
     const fueraDeTermino = difHoras < 24;
@@ -151,7 +152,7 @@ async function CU06CancelarViaje(req: Request, res: Response) {
     <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
       <p style="margin: 5px 0;">📍 <b>Origen:</b> ${viaje.viajeOrigen.nombre}</p>
       <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
-      <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${fechaViaje.toLocaleDateString('es-AR')}</p>
+      <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${viaje.viajeFecha.split('-').reverse().join('/')}</p>
     </div>
     ${fueraDeTermino
         ? '<p>Debido a que la cancelación fue sobre la hora, podés <b>calificar al conductor</b> ingresando a la plataforma para contar tu experiencia.</p>'
@@ -172,8 +173,8 @@ async function CU06CancelarViaje(req: Request, res: Response) {
 
     res.status(200).json({
       message: fueraDeTermino
-        ? 'El viaje se marcó como finalizado por cancelación tardía.'
-        : 'Viaje cancelado y pasajeros notificados.',
+        ? 'El viaje ha sido cancelado, los pasajeros podrán calificarte por cancelación tardía si lo desean.'
+        : 'El viaje ha sido cancelado.',
       nuevoEstado: viaje.viajeEstado
     });
 
@@ -184,24 +185,21 @@ async function CU06CancelarViaje(req: Request, res: Response) {
 
 async function CU07SolicitarViaje01(req: Request, res: Response) {
   try {
-    let filter: {
-      viajeOrigen?: number;
-      viajeDestino?: number;
-      viajeFecha?: Date;
-      viajeAceptaMascotas?: boolean;
-      usuarioConductor?: any;
-      viajeEstado?: string;
-    } = { viajeEstado: 'Disponible' };
+    let filter: any = { viajeEstado: 'pendiente' };
 
     //Habria que cambiar lo de user id, el lugar donde se obtiene
     const usuarioId = Number.parseInt(req.query.usuarioId as string);
 
-    const usuario = await em.findOne(Usuario, { idUsuario: usuarioId });
+    /*const usuario = await em.findOne(Usuario, { idUsuario: usuarioId });*/
 
-    const solicitudesExclude = await em.find(SolicitudViaje, {
-      usuario: usuario,
-      estadoSolicitud: EstadoSolicitud.PENDIENTE,
-    });
+    let idsYaSolicitados: number[] = [];
+    if (!isNaN(usuarioId)) {
+      const solicitudesPrevias = await em.find(SolicitudViaje, {
+        usuario: { idUsuario: usuarioId },
+        estadoSolicitud: { $in: ['pendiente', 'aprobada'] }
+      }, { populate: ['viaje'] });
+      idsYaSolicitados = solicitudesPrevias.map(s => s.viaje.viajeId);
+    }
 
     if (req.query.viajeOrigen) {
       filter.viajeOrigen = Number.parseInt(
@@ -215,11 +213,12 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
     }
     if (req.query.mascota) {
       if (req.query.mascota === 'true') {
+        // Solo filtramos si el pasajero viaja estrictamente con mascota
         filter.viajeAceptaMascotas = true;
-      } else filter.viajeAceptaMascotas = false;
+      }
     }
     if (req.query.viajeFecha) {
-      filter.viajeFecha = new Date(req.query.viajeFecha as string);
+      filter.viajeFecha = (req.query.viajeFecha as string).substring(0, 10);
     }
     if (req.query.generoConductor && req.query.generoConductor !== '') {
       filter.usuarioConductor = {
@@ -227,17 +226,16 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
       };
     }
 
-    const viajesBrutos = await em.find(Viaje, filter, {
+    const viajesEncontrados = await em.find(Viaje, filter, {
       populate: ['usuarioConductor', 'vehiculo', 'viajeOrigen', 'viajeDestino'],
     });
 
-    const idsConSolicitud = solicitudesExclude.map((s) => s.viaje.viajeId);
-
-    const viajesPosibles = viajesBrutos.filter(
-      (viaje) =>
-        !idsConSolicitud.includes(viaje.viajeId) &&
-        viaje.usuarioConductor.idUsuario !== usuarioId, // Excluir mis propios viajes
+    const viajesPosibles = viajesEncontrados.filter(viaje =>
+      !idsYaSolicitados.includes(viaje.viajeId) 
+      // Comentamos esta línea para que puedas ver tus propios viajes en la búsqueda si los publicaste vos
+      // && viaje.usuarioConductor.idUsuario !== usuarioId
     );
+
 
     res.status(200).json({ data: viajesPosibles });
   } catch (error: any) {

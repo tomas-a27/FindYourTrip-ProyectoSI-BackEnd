@@ -3,9 +3,7 @@ import { EstadoViaje } from '../shared/enums.js';
 
 export const viajeSchema = z
   .object({
-    viajeFecha: z.coerce.date().refine((val) => !isNaN(val.getTime()), {
-      message: 'La fecha es inválida o obligatoria',
-    }),
+    viajeFecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)'),
     viajeHorario: z
       .string()
       .regex(

@@ -8,8 +8,8 @@ export class Viaje {
   @PrimaryKey()
   viajeId!: number;
 
-  @Property()
-  viajeFecha!: Date;
+  @Property({ type: 'date' })
+  viajeFecha!: string;
 
   @Property({ type: 'time' })
   viajeHorario!: string;

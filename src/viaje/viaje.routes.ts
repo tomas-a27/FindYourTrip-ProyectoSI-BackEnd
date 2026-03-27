@@ -8,6 +8,7 @@ import {
   GetAllSolicitudes,
   getMisSolicitudes,
   getMisPublicaciones,
+  CU06CancelarViaje
 } from './viaje.controller.js';
 import { verifyToken } from '../usuario/usuario.controller.js';
 
@@ -24,6 +25,7 @@ viajeRouter.post(
   solicitudViajeValidator,
   CU07SolicitarViaje02,
 );
+viajeRouter.patch('/cancelar/:id', CU06CancelarViaje);
 viajeRouter.get('/mis-solicitudes/:idUsuario', getMisSolicitudes);
 viajeRouter.get('/mis-publicaciones/:idUsuario', getMisPublicaciones);
 

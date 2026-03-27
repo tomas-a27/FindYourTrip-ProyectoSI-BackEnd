@@ -6,7 +6,8 @@ import { Usuario } from '../usuario/usuario.entity.js';
 import { viajeSchema } from './viaje.schema.js';
 import { SolicitudViajeSchema } from './solicitudViaje.schema.js';
 import { SolicitudViaje } from './solicitudViaje.entity.js';
-import { EstadoSolicitud } from '../shared/enums.js';
+import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
+import { enviarNotificacionEmail } from '../shared/resend.js';
 
 const em = orm.em;
 
@@ -115,6 +116,67 @@ async function CU05PublicarViaje(req: Request, res: Response) {
     await em.flush();
 
     res.status(201).json({ message: 'Viaje publicado con éxito', data: viaje });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CU06CancelarViaje(req: Request, res: Response) {
+  try {
+    const idViaje = Number.parseInt(req.params.id as string);
+    const viaje = await em.findOne(Viaje, { viajeId: idViaje }, { populate: ['usuarioConductor', 'viajeOrigen', 'viajeDestino'] });
+
+    if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
+
+    const ahora = new Date();
+    const fechaViaje = new Date(viaje.viajeFecha);
+    // calculamos la diferencia en horas
+    const difHoras = (fechaViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+
+    // si falta menos de 24hs, se registra como Realizado para poder calificar
+    const fueraDeTermino = difHoras < 24;
+    viaje.viajeEstado = fueraDeTermino ? EstadoViaje.REALIZADO : EstadoViaje.CANCELADO;
+
+    // notificamos a los pasajeros aprobados por mail
+    const solicitudesAprobadas = await em.find(SolicitudViaje,
+      { viaje: viaje, estadoSolicitud: EstadoSolicitud.APROBADA },
+      { populate: ['usuario'] }
+    );
+
+    const promesasEmails = solicitudesAprobadas.map((sol) => {
+      const sujeto = "Tu viaje programado ha sido cancelado - Find Your Trip";
+      const tituloHeader = `¡Hola, ${sol.usuario.nombreUsuario}!`;
+      const contenidoHtml = `
+    <p>Te informamos que el conductor <b>${viaje.usuarioConductor.nombreUsuario}</b> ha cancelado el siguiente viaje:</p>
+    <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
+      <p style="margin: 5px 0;">📍 <b>Origen:</b> ${viaje.viajeOrigen.nombre}</p>
+      <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
+      <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${fechaViaje.toLocaleDateString('es-AR')}</p>
+    </div>
+    ${fueraDeTermino
+        ? '<p>Debido a que la cancelación fue sobre la hora, podés <b>calificar al conductor</b> ingresando a la plataforma para contar tu experiencia.</p>'
+          : '<p>Lamentamos los inconvenientes. Podés buscar nuevos viajes disponibles en la plataforma.</p>'
+        }
+  `;
+
+      return enviarNotificacionEmail(
+        sol.usuario.email,
+        sujeto,
+        tituloHeader,
+        contenidoHtml
+      ).catch(err => console.error("Error al enviar mail de cancelación:", err));
+    });
+
+    await Promise.all(promesasEmails);
+    await em.flush();
+
+    res.status(200).json({
+      message: fueraDeTermino
+        ? 'El viaje se marcó como finalizado por cancelación tardía.'
+        : 'Viaje cancelado y pasajeros notificados.',
+      nuevoEstado: viaje.viajeEstado
+    });
+
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -300,6 +362,7 @@ async function getMisPublicaciones(req: Request, res: Response) {
 export {
   CU07SolicitarViaje02,
   CU05PublicarViaje,
+  CU06CancelarViaje,
   CU07SolicitarViaje01,
   GetAllSolicitudes,
   getMisSolicitudes,

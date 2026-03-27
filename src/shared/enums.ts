@@ -35,3 +35,10 @@ export enum EstadoSolicitud {
   DENEGADA = 'Denegada',
   CANCELADA = 'Cancelada',
 }
+
+export enum EstadoViaje {
+  PENDIENTE = 'pendiente',
+  EN_CURSO = 'enCurso',
+  REALIZADO = 'realizado',
+  CANCELADO = 'cancelado',
+}

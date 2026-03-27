@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EstadoViaje } from '../shared/enums.js';
 
 export const viajeSchema = z
   .object({
@@ -17,7 +18,7 @@ export const viajeSchema = z
       .min(1, 'Debe haber al menos 1 lugar'),
     viajePrecio: z.coerce.number().positive('El precio debe ser mayor a 0'),
     viajeAceptaMascotas: z.coerce.boolean(),
-    viajeEstado: z.string().default('Disponible'),
+    viajeEstado: z.nativeEnum(EstadoViaje).default(EstadoViaje.PENDIENTE),
     viajeComentario: z.string().optional().or(z.literal('')),
     // Relaciones
     vehiculo: z.string().min(1, 'La patente del vehículo es obligatoria'),

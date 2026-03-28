@@ -570,6 +570,36 @@ async function restablecerContrasena(req: Request, res: Response) {
   }
 }
 
+async function obtenerInformeConductores(req: Request, res: Response) {
+  try {
+
+    const conductores = await em.find(
+      Usuario,
+      {
+        tipoUsuario: TipoUsuario.CONDUCTOR,
+        estadoConductor: EstadoConductor.APROBADO,
+      },
+      {
+        //Ordenamos por calificación de mayor a menor (DESC)
+        orderBy: { calificacionConductor: 'DESC NULLS LAST' },
+        fields: [
+          'nroLicenciaConductorUsuario',
+          'nombreUsuario',
+          'apellidoUsuario',
+          'calificacionConductor',
+        ],
+      }
+    );
+
+    res.status(200).json({
+      message: 'Informe de conductores generado exitosamente',
+      data: conductores,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 export {
   usuarioValidator,
   solicitudConductorValidator,
@@ -583,6 +613,7 @@ export {
   CU04AprobarPasajeroComoConductor,
   solicitarRecuperacionContrasena,
   restablecerContrasena,
+  obtenerInformeConductores,
   verifyToken,
   authorizeRoles,
 };

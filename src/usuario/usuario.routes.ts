@@ -15,6 +15,7 @@ import {
   CU04AprobarPasajeroComoConductor ,
   solicitarRecuperacionContrasena,
   restablecerContrasena,
+  obtenerInformeConductores,
   verifyToken,
   authorizeRoles
 } from './usuario.controller.js'
@@ -34,6 +35,13 @@ usuarioRouter.get(
   authorizeRoles([TipoUsuario.ADMINISTRADOR]),
   obtenerConductoresPendientes
 )
+
+usuarioRouter.get(
+  '/informe-conductores',
+  verifyToken,
+  authorizeRoles([TipoUsuario.ADMINISTRADOR]),
+  obtenerInformeConductores
+);
 
 usuarioRouter.put(
   '/solicitarSerConductor/:id',

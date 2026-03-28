@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import {
-  CU07SolicitarViaje02,
-  CU05PublicarViaje,
   viajeValidator,
+  CU05PublicarViaje,
+  CU06CancelarViaje,
   CU07SolicitarViaje01,
+  CU07SolicitarViaje02,
+  CU08CancelarSolicitudDeViaje,
   solicitudViajeValidator,
   GetAllSolicitudes,
   getMisSolicitudes,
   getMisPublicaciones,
-  CU06CancelarViaje,
   CUU09AprobarDenegarSolicitudes01,
   CUU09AprobarDenegarSolicitudes02,
   CUU09AprobarDenegarSolicitudes03,
@@ -29,6 +30,7 @@ viajeRouter.post(
   CU07SolicitarViaje02,
 );
 viajeRouter.patch('/cancelar/:id', CU06CancelarViaje);
+viajeRouter.patch('/cancelar-solicitud/:id', CU08CancelarSolicitudDeViaje);
 viajeRouter.get('/mis-solicitudes/:idUsuario', getMisSolicitudes);
 viajeRouter.get('/mis-publicaciones/:idUsuario', getMisPublicaciones);
 viajeRouter.get(
@@ -48,4 +50,6 @@ viajeRouter.patch(
   '/solicitudes-aprobadas-rechazadas-viaje-denegar/:id',
   CUU09AprobarDenegarSolicitudes04,
 );
+viajeRouter.get('/solicitudes', GetAllSolicitudes);
+
 viajeRouter.get('/solicitudes', GetAllSolicitudes);

@@ -8,6 +8,7 @@ import { SolicitudViajeSchema } from './solicitudViaje.schema.js';
 import { SolicitudViaje } from './solicitudViaje.entity.js';
 import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
 import { enviarNotificacionEmail } from '../shared/resend.js';
+import { populate } from 'dotenv';
 
 const em = orm.em;
 
@@ -106,7 +107,7 @@ async function CU05PublicarViaje(req: Request, res: Response) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    const fechaViajeObj = new Date(datosViaje.viajeFecha + "T00:00:00");
+    const fechaViajeObj = new Date(datosViaje.viajeFecha + 'T00:00:00');
     if (fechaViajeObj < hoy) {
       return res
         .status(400)
@@ -125,27 +126,37 @@ async function CU05PublicarViaje(req: Request, res: Response) {
 async function CU06CancelarViaje(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
-    const viaje = await em.findOne(Viaje, { viajeId: idViaje }, { populate: ['usuarioConductor', 'viajeOrigen', 'viajeDestino'] });
+    const viaje = await em.findOne(
+      Viaje,
+      { viajeId: idViaje },
+      { populate: ['usuarioConductor', 'viajeOrigen', 'viajeDestino'] },
+    );
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
     const ahora = new Date();
-    const fechaYHoraViaje = new Date(`${viaje.viajeFecha}T${viaje.viajeHorario}`);
+    const fechaYHoraViaje = new Date(
+      `${viaje.viajeFecha}T${viaje.viajeHorario}`,
+    );
     // calculamos la diferencia en horas
-    const difHoras = (fechaYHoraViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+    const difHoras =
+      (fechaYHoraViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
 
     // si falta menos de 24hs, se registra como Realizado para poder calificar
     const fueraDeTermino = difHoras < 24;
-    viaje.viajeEstado = fueraDeTermino ? EstadoViaje.REALIZADO : EstadoViaje.CANCELADO;
+    viaje.viajeEstado = fueraDeTermino
+      ? EstadoViaje.REALIZADO
+      : EstadoViaje.CANCELADO;
 
     // notificamos a los pasajeros aprobados por mail
-    const solicitudesAprobadas = await em.find(SolicitudViaje,
+    const solicitudesAprobadas = await em.find(
+      SolicitudViaje,
       { viaje: viaje, estadoSolicitud: EstadoSolicitud.APROBADA },
-      { populate: ['usuario'] }
+      { populate: ['usuario'] },
     );
 
     const promesasEmails = solicitudesAprobadas.map((sol) => {
-      const sujeto = "Tu viaje programado ha sido cancelado - Find Your Trip";
+      const sujeto = 'Tu viaje programado ha sido cancelado - Find Your Trip';
       const tituloHeader = `¡Hola, ${sol.usuario.nombreUsuario}!`;
       const contenidoHtml = `
     <p>Te informamos que el conductor <b>${viaje.usuarioConductor.nombreUsuario}</b> ha cancelado el siguiente viaje:</p>
@@ -154,18 +165,21 @@ async function CU06CancelarViaje(req: Request, res: Response) {
       <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
       <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${viaje.viajeFecha.split('-').reverse().join('/')}</p>
     </div>
-    ${fueraDeTermino
+    ${
+      fueraDeTermino
         ? '<p>Debido a que la cancelación fue sobre la hora, podés <b>calificar al conductor</b> ingresando a la plataforma para contar tu experiencia.</p>'
-          : '<p>Lamentamos los inconvenientes. Podés buscar nuevos viajes disponibles en la plataforma.</p>'
-        }
+        : '<p>Lamentamos los inconvenientes. Podés buscar nuevos viajes disponibles en la plataforma.</p>'
+    }
   `;
 
       return enviarNotificacionEmail(
         sol.usuario.email,
         sujeto,
         tituloHeader,
-        contenidoHtml
-      ).catch(err => console.error("Error al enviar mail de cancelación:", err));
+        contenidoHtml,
+      ).catch((err) =>
+        console.error('Error al enviar mail de cancelación:', err),
+      );
     });
 
     await Promise.all(promesasEmails);
@@ -175,9 +189,8 @@ async function CU06CancelarViaje(req: Request, res: Response) {
       message: fueraDeTermino
         ? 'El viaje ha sido cancelado, los pasajeros podrán calificarte por cancelación tardía si lo desean.'
         : 'El viaje ha sido cancelado.',
-      nuevoEstado: viaje.viajeEstado
+      nuevoEstado: viaje.viajeEstado,
     });
-
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -194,11 +207,15 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
 
     let idsYaSolicitados: number[] = [];
     if (!isNaN(usuarioId)) {
-      const solicitudesPrevias = await em.find(SolicitudViaje, {
-        usuario: { idUsuario: usuarioId },
-        estadoSolicitud: { $in: ['pendiente', 'aprobada'] }
-      }, { populate: ['viaje'] });
-      idsYaSolicitados = solicitudesPrevias.map(s => s.viaje.viajeId);
+      const solicitudesPrevias = await em.find(
+        SolicitudViaje,
+        {
+          usuario: { idUsuario: usuarioId },
+          estadoSolicitud: { $in: ['pendiente', 'aprobada'] },
+        },
+        { populate: ['viaje'] },
+      );
+      idsYaSolicitados = solicitudesPrevias.map((s) => s.viaje.viajeId);
     }
 
     if (req.query.viajeOrigen) {
@@ -230,12 +247,11 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
       populate: ['usuarioConductor', 'vehiculo', 'viajeOrigen', 'viajeDestino'],
     });
 
-    const viajesPosibles = viajesEncontrados.filter(viaje =>
-      !idsYaSolicitados.includes(viaje.viajeId) 
+    const viajesPosibles = viajesEncontrados.filter(
+      (viaje) => !idsYaSolicitados.includes(viaje.viajeId),
       // Comentamos esta línea para que puedas ver tus propios viajes en la búsqueda si los publicaste vos
       // && viaje.usuarioConductor.idUsuario !== usuarioId
     );
-
 
     res.status(200).json({ data: viajesPosibles });
   } catch (error: any) {
@@ -357,6 +373,76 @@ async function getMisPublicaciones(req: Request, res: Response) {
   }
 }
 
+async function CUU09AprobarDenegarSolicitudes01(req: Request, res: Response) {
+  try {
+    const idViaje = Number.parseInt(req.params.id as string);
+    const solicitudes = await em.find(
+      SolicitudViaje,
+      {
+        viaje: { viajeId: idViaje },
+        estadoSolicitud: EstadoSolicitud.PENDIENTE,
+      },
+      { populate: ['usuario'] },
+    );
+
+    res.status(200).json({ data: solicitudes });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CUU09AprobarDenegarSolicitudes02(req: Request, res: Response) {
+  try {
+    const idViaje = Number.parseInt(req.params.id as string);
+    const solicitudes = await em.find(
+      SolicitudViaje,
+      {
+        viaje: { viajeId: idViaje },
+        estadoSolicitud: {
+          $in: [EstadoSolicitud.APROBADA, EstadoSolicitud.DENEGADA],
+        },
+      },
+      { populate: ['usuario'] },
+    );
+
+    res.status(200).json({ data: solicitudes });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
+  try {
+    const idSolicitud = Number.parseInt(req.params.id as string);
+    const solicitud = await em.findOneOrFail(SolicitudViaje, {
+      solViajeId: idSolicitud,
+    });
+
+    em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.APROBADA });
+    await em.flush();
+
+    res.status(201);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
+  try {
+    const idSolicitud = Number.parseInt(req.params.id as string);
+    const solicitud = await em.findOneOrFail(SolicitudViaje, {
+      solViajeId: idSolicitud,
+    });
+
+    em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.DENEGADA });
+    await em.flush();
+
+    res.status(201);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 export {
   CU07SolicitarViaje02,
   CU05PublicarViaje,
@@ -365,4 +451,8 @@ export {
   GetAllSolicitudes,
   getMisSolicitudes,
   getMisPublicaciones,
+  CUU09AprobarDenegarSolicitudes01,
+  CUU09AprobarDenegarSolicitudes02,
+  CUU09AprobarDenegarSolicitudes03,
+  CUU09AprobarDenegarSolicitudes04,
 };

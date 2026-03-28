@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import {
-  CU07SolicitarViaje02,
-  CU05PublicarViaje,
   viajeValidator,
+  CU05PublicarViaje,
+  CU06CancelarViaje,
   CU07SolicitarViaje01,
+  CU07SolicitarViaje02,
+  CU08CancelarSolicitudDeViaje,
   solicitudViajeValidator,
   GetAllSolicitudes,
   getMisSolicitudes,
-  getMisPublicaciones,
-  CU06CancelarViaje
+  getMisPublicaciones
 } from './viaje.controller.js';
 import { verifyToken } from '../usuario/usuario.controller.js';
 
@@ -26,6 +27,7 @@ viajeRouter.post(
   CU07SolicitarViaje02,
 );
 viajeRouter.patch('/cancelar/:id', CU06CancelarViaje);
+viajeRouter.patch('/cancelar-solicitud/:id', CU08CancelarSolicitudDeViaje);
 viajeRouter.get('/mis-solicitudes/:idUsuario', getMisSolicitudes);
 viajeRouter.get('/mis-publicaciones/:idUsuario', getMisPublicaciones);
 

@@ -282,6 +282,46 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
   }
 }
 
+async function CU08CancelarSolicitudDeViaje(req: Request, res: Response) {
+  try {
+    const idSolicitud = Number.parseInt(req.params.id as string);
+
+    const solicitud = await em.findOne(
+      SolicitudViaje,
+      { solViajeId: idSolicitud },
+      { populate: ['viaje', 'viaje.viajeDestino'] }
+    );
+
+    if (!solicitud) {
+      return res.status(404).json({ message: 'Solicitud no encontrada' });
+    }
+
+    const estadosValidos = [EstadoSolicitud.PENDIENTE, EstadoSolicitud.APROBADA];
+
+    if (!estadosValidos.includes(solicitud.estadoSolicitud as EstadoSolicitud)) {
+      return res.status(400).json({ message: 'Solo se pueden cancelar solicitudes pendientes o aprobadas' });
+    }
+
+    if (solicitud.viaje.viajeEstado !== EstadoViaje.PENDIENTE) {
+      return res.status(400).json({ message: 'El viaje ya no permite cancelar solicitudes' });
+    }
+
+    solicitud.estadoSolicitud = EstadoSolicitud.CANCELADA;
+    await em.flush();
+
+    res.status(200).json({
+      message: 'La solicitud de viaje ha sido cancelada',
+      data: {
+        destino: solicitud.viaje.viajeDestino.nombre,
+        fecha: solicitud.viaje.viajeFecha,
+        hora: solicitud.viaje.viajeHorario,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 async function GetAllSolicitudes(req: Request, res: Response) {
   try {
     const sol = await em.findAll(SolicitudViaje);
@@ -358,10 +398,11 @@ async function getMisPublicaciones(req: Request, res: Response) {
 }
 
 export {
-  CU07SolicitarViaje02,
   CU05PublicarViaje,
   CU06CancelarViaje,
   CU07SolicitarViaje01,
+  CU07SolicitarViaje02,
+  CU08CancelarSolicitudDeViaje,
   GetAllSolicitudes,
   getMisSolicitudes,
   getMisPublicaciones,

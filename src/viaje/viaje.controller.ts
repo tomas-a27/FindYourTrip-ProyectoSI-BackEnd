@@ -277,7 +277,17 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
     if (!viaje) {
       return res.status(404).json({ message: 'Viaje no encontrado.' });
     }
+    
+    const ahora = new Date();
+    const [horas, minutos] = viaje.viajeHorario.split(':').map(Number);
+    const fechaHoraViaje = new Date(viaje.viajeFecha);
+    fechaHoraViaje.setHours(horas, minutos, 0, 0);
 
+    if (ahora >= fechaHoraViaje) {
+      return res.status(400).json({
+        message: 'No podés solicitar este viaje porque ya ha comenzado o su fecha de salida ya pasó.'
+      });
+    }
     const solicitudPrevia = await em.findOne(SolicitudViaje, {
       usuario: usuario,
       viaje: viaje,
@@ -503,6 +513,45 @@ async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
   }
 }
 
+async function ComenzarViaje(req: Request, res: Response) {
+  try {
+    const idViaje = Number.parseInt(req.params.id as string);
+    const viaje = await em.findOne(Viaje, { viajeId: idViaje });
+
+    if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
+
+    viaje.viajeEstado = 'enCurso';
+    await em.flush();
+
+    res.status(200).json({
+      message: 'El viaje ha comenzado.',
+      nuevoEstado: viaje.viajeEstado
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CU10FinalizarViaje(req: Request, res: Response) {
+  try {
+    const idViaje = Number.parseInt(req.params.id as string);
+    const viaje = await em.findOne(Viaje, { viajeId: idViaje });
+
+    if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
+
+    viaje.viajeEstado = 'realizado';
+    await em.flush();
+
+    res.status(200).json({
+      message: 'Viaje finalizado con éxito.',
+      nuevoEstado: viaje.viajeEstado
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
 export {
   CU05PublicarViaje,
   CU06CancelarViaje,
@@ -516,4 +565,6 @@ export {
   CUU09AprobarDenegarSolicitudes02,
   CUU09AprobarDenegarSolicitudes03,
   CUU09AprobarDenegarSolicitudes04,
+  ComenzarViaje,
+  CU10FinalizarViaje,
 };

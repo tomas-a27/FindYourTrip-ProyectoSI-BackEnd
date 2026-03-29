@@ -231,9 +231,8 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
     });
 
     const viajesPosibles = viajesEncontrados.filter(viaje =>
-      !idsYaSolicitados.includes(viaje.viajeId) 
-      // Comentamos esta línea para que puedas ver tus propios viajes en la búsqueda si los publicaste vos
-      // && viaje.usuarioConductor.idUsuario !== usuarioId
+      !idsYaSolicitados.includes(viaje.viajeId) &&
+      viaje.usuarioConductor.idUsuario !== usuarioId
     );
 
 
@@ -261,6 +260,16 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
 
     if (!viaje) {
       return res.status(404).json({ message: 'Viaje no encontrado.' });
+    }
+
+    const solicitudPrevia = await em.findOne(SolicitudViaje, {
+      usuario: usuario,
+      viaje: viaje,
+      estadoSolicitud: { $in: ['pendiente', 'aprobada'] }
+    });
+
+    if (solicitudPrevia) {
+      return res.status(400).json({ message: 'Ya has solicitado unirte a este viaje previamente.' });
     }
 
     const datosSolictudViaje = {

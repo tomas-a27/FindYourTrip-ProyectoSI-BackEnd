@@ -617,10 +617,8 @@ async function CUU14InformeDeRutas(req: Request, res: Response) {
       message: 'Informe generado correctamente',
       data: {
         rutas: rutas,
-        resumen: {
-          cantidadTotalViajes: cantTotalViajes,
-          precioPromedioGeneral: Number(precioTotalPromedio.toFixed(2)),
-        },
+        cantidadTotalViajes: cantTotalViajes,
+        precioPromedioGeneral: Number(precioTotalPromedio.toFixed(2)),
       },
     });
   } catch (error: any) {

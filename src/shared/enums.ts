@@ -39,6 +39,6 @@ export enum EstadoSolicitud {
 export enum EstadoViaje {
   PENDIENTE = 'pendiente',
   EN_CURSO = 'enCurso',
-  REALIZADO = 'realizado',
+  FINALIZADO = 'finalizado',
   CANCELADO = 'cancelado',
 }

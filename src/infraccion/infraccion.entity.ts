@@ -6,10 +6,10 @@ export class Infraccion {
     @PrimaryKey()
     idInfraccion?: number
 
-    @Property()
+    @Property({ nullable: true })
     comentarioInfraccion?: string
 
-    @Property()
+    @Property({ nullable: true })
     descripcionInfraccion?: string
 
     @Property()

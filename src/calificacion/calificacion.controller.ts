@@ -38,18 +38,19 @@ async function registrarCalificacionGenerica(req: Request, res: Response) {
       comentarioCalificacion: comentario ? String(comentario) : undefined
     });
 
-    await em.persist(nuevaCalificacion).flush();
+    em.persist(nuevaCalificacion);
 
     if (reporte && reporte.motivo) {
       const nuevaInfraccion = em.create(Infraccion, {
         calificacion: nuevaCalificacion, 
         descripcionInfraccion: reporte.motivo, 
-        comentarioInfraccion: reporte.comentario || '',
+        comentarioInfraccion: reporte.comentarioInfraccion || '',
         infraccionFecha: new Date(),
         calificacionTipo: tipo 
       });
-      await em.persist(nuevaInfraccion).flush();
+      em.persist(nuevaInfraccion);
     }
+    await em.flush();
 
     res.status(201).json({
       message: reporte ? 'Registro de infracción y calificación exitoso.' : 'Calificación exitosa.'

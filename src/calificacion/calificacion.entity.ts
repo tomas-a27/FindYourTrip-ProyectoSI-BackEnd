@@ -13,7 +13,7 @@ export class Calificacion {
     @Property()
     calificacionValoracionLikert!: number
 
-    @Property()
+    @Property({ nullable: true })
     comentarioCalificacion?: string
 
     @ManyToOne(()=>Usuario)

@@ -142,10 +142,10 @@ async function CU06CancelarViaje(req: Request, res: Response) {
     const difHoras =
       (fechaYHoraViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
 
-    // si falta menos de 24hs, se registra como Realizado para poder calificar
+    // si falta menos de 24hs, se registra como Finalizado para poder calificar
     const fueraDeTermino = difHoras < 24;
     viaje.viajeEstado = fueraDeTermino
-      ? EstadoViaje.REALIZADO
+      ? EstadoViaje.FINALIZADO
       : EstadoViaje.CANCELADO;
 
     // notificamos a los pasajeros aprobados por mail
@@ -541,12 +541,12 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
-    viaje.viajeEstado = 'realizado';
+    viaje.viajeEstado = 'finalizado';
     await em.flush();
 
     const pasajerosACalificar = viaje.solicitudes
       .getItems()
-      .filter(s => s.estadoSolicitud === 'aprobada')
+      .filter(s => s.estadoSolicitud === 'Aprobada')
       .map(s => ({
         idUsuario: s.usuario.idUsuario,
         nombre: s.usuario.nombreUsuario,

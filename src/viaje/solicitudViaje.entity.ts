@@ -1,6 +1,6 @@
-import { Entity, Property, ManyToOne, PrimaryKey } from '@mikro-orm/core';
+import { Entity, Property, ManyToOne, PrimaryKey, Rel } from '@mikro-orm/core';
 import { Usuario } from '../usuario/usuario.entity.js';
-import { Viaje } from '../viaje/viaje.entity.js';
+import type { Viaje } from '../viaje/viaje.entity.js';
 
 @Entity()
 export class SolicitudViaje {
@@ -16,6 +16,6 @@ export class SolicitudViaje {
   @ManyToOne(() => Usuario)
   usuario!: Usuario;
 
-  @ManyToOne(() => Viaje)
-  viaje!: Viaje;
+  @ManyToOne(() => 'Viaje')
+  viaje!: Rel<Viaje>;
 }

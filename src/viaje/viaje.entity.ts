@@ -1,6 +1,6 @@
 import { Entity, Property, ManyToOne, PrimaryKey, OneToMany, Collection } from '@mikro-orm/core';
 import { Vehiculo } from '../usuario/vehiculo.entity.js';
-import { SolicitudViaje } from './solicitudViaje.entity.js';
+import type { SolicitudViaje } from './solicitudViaje.entity.js';
 import { Usuario } from '../usuario/usuario.entity.js';
 import { Localidad } from '../localidad/localidad.entity.js';
 
@@ -42,6 +42,6 @@ export class Viaje {
   @ManyToOne(() => Localidad, { nullable: false })
   viajeDestino!: Localidad;
 
-  @OneToMany(() => SolicitudViaje, solicitud => solicitud.viaje)
+  @OneToMany(() => 'SolicitudViaje', (solicitud: any) => solicitud.viaje)
   solicitudes = new Collection<SolicitudViaje>(this);
 }

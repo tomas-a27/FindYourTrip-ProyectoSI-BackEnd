@@ -9,6 +9,7 @@ import { localidadRouter } from './localidad/localidad.routes.js';
 import { usuarioRouter } from './usuario/usuario.routes.js';
 import { vehiculoRouter } from './usuario/vehiculo.routes.js';
 import { viajeRouter } from './viaje/viaje.routes.js';
+import { calificacionRouter } from './calificacion/calificacion.routes.js';
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/localidad', localidadRouter);
 app.use('/api/usuario', usuarioRouter);
 app.use('/api/vehiculo', vehiculoRouter);
 app.use('/api/viaje', viajeRouter);
+app.use('/api/calificacion', calificacionRouter);
 
 app.use((_, res) => {
   return res.status(404).send({ message: 'Resource not found' });

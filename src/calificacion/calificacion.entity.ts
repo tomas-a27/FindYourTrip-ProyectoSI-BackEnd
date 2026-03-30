@@ -5,13 +5,16 @@ import { Viaje } from '../viaje/viaje.entity.js';
 @Entity()
 export class Calificacion {
     @PrimaryKey()
-    idCalificacion!: number
+    idCalificacion?: number
 
     @Property()
     calificacionTipo!: string
 
     @Property()
     calificacionValoracionLikert!: number
+
+    @Property()
+    comentarioCalificacion?: string
 
     @ManyToOne(()=>Usuario)
     usuario!: Usuario

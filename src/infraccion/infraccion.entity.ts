@@ -4,7 +4,7 @@ import { Calificacion } from '../calificacion/calificacion.entity.js';
 @Entity()
 export class Infraccion {
     @PrimaryKey()
-    idInfraccion!: number
+    idInfraccion?: number
 
     @Property()
     comentarioInfraccion?: string

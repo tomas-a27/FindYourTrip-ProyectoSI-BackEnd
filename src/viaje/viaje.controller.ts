@@ -535,16 +535,28 @@ async function ComenzarViaje(req: Request, res: Response) {
 async function CU10FinalizarViaje(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
-    const viaje = await em.findOne(Viaje, { viajeId: idViaje });
+    const viaje = await em.findOne(Viaje, { viajeId: idViaje }, {
+      populate: ['solicitudes.usuario']
+    });
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
     viaje.viajeEstado = 'realizado';
     await em.flush();
 
+    const pasajerosACalificar = viaje.solicitudes
+      .getItems()
+      .filter(s => s.estadoSolicitud === 'aprobada')
+      .map(s => ({
+        idUsuario: s.usuario.idUsuario,
+        nombre: s.usuario.nombreUsuario,
+        apellido: s.usuario.apellidoUsuario
+      }));
+
     res.status(200).json({
       message: 'Viaje finalizado con éxito.',
-      nuevoEstado: viaje.viajeEstado
+      nuevoEstado: viaje.viajeEstado,
+      pasajeros: pasajerosACalificar
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });

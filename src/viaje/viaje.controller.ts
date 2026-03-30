@@ -572,17 +572,17 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
 }
 async function obtenerRutasFrecuentesSQL() {
   const query = `
-    SELECT 
-      o.nombre AS "nombreOrigen", 
-      d.nombre AS "nombreDestino", 
-      COUNT(*) AS "cantidadDeViajes", 
-      AVG(v.viaje_precio) AS "viajePrecioPromedio"
+SELECT 
+      o.nombre AS nombreOrigen, 
+      d.nombre AS nombreDestino, 
+      COUNT(*) AS cantidadDeViajes, 
+      AVG(v.viaje_precio) AS viajePrecioPromedio
     FROM viaje v
     JOIN localidad o ON v.viaje_origen_id = o.id
     JOIN localidad d ON v.viaje_destino_id = d.id
-    WHERE v.viaje_fecha >= CURRENT_DATE - INTERVAL '30 days' 
+    WHERE v.viaje_fecha BETWEEN DATE_SUB(NOW(), INTERVAL 30 DAY) AND NOW()
     GROUP BY o.nombre, d.nombre
-    ORDER BY "cantidadDeViajes" DESC
+    ORDER BY cantidadDeViajes DESC
     LIMIT 15;
   `;
 
@@ -602,7 +602,7 @@ async function obtenerRutasFrecuentesSQL() {
 async function CUU14InformeDeRutas(req: Request, res: Response) {
   try {
     const rutas = await obtenerRutasFrecuentesSQL();
-
+    
     let cantTotalViajes = 0;
     let precioTotal = 0;
     for (let index = 0; index < rutas.length; index++) {
@@ -610,8 +610,16 @@ async function CUU14InformeDeRutas(req: Request, res: Response) {
       cantTotalViajes = element.cantidadDeViajes + cantTotalViajes;
       precioTotal =
         element.viajePrecioPromedio * element.cantidadDeViajes + precioTotal;
+  
+    }
+
+    
+    if (cantTotalViajes === 0) {
+      res.status(404).json({ message: 'No se han registrado viajes en los últimos 30 días.' });
+      return;
     }
     const precioTotalPromedio = precioTotal / cantTotalViajes;
+
 
     res.status(200).json({
       message: 'Informe generado correctamente',
@@ -622,7 +630,7 @@ async function CUU14InformeDeRutas(req: Request, res: Response) {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 }
 

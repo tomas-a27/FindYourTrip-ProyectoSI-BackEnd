@@ -9,6 +9,8 @@ import { SolicitudViaje } from './solicitudViaje.entity.js';
 import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
 import { enviarNotificacionEmail } from '../shared/resend.js';
 import { populate } from 'dotenv';
+import { tr } from 'zod/locales';
+import { group } from 'node:console';
 
 const em = orm.em;
 
@@ -247,9 +249,10 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
       populate: ['usuarioConductor', 'vehiculo', 'viajeOrigen', 'viajeDestino'],
     });
 
-    const viajesPosibles = viajesEncontrados.filter(viaje =>
-      !idsYaSolicitados.includes(viaje.viajeId) &&
-      viaje.usuarioConductor.idUsuario !== usuarioId
+    const viajesPosibles = viajesEncontrados.filter(
+      (viaje) =>
+        !idsYaSolicitados.includes(viaje.viajeId) &&
+        viaje.usuarioConductor.idUsuario !== usuarioId,
     );
 
     res.status(200).json({ data: viajesPosibles });
@@ -277,7 +280,7 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
     if (!viaje) {
       return res.status(404).json({ message: 'Viaje no encontrado.' });
     }
-    
+
     const ahora = new Date();
     const [horas, minutos] = viaje.viajeHorario.split(':').map(Number);
     const fechaHoraViaje = new Date(viaje.viajeFecha);
@@ -285,17 +288,20 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
 
     if (ahora >= fechaHoraViaje) {
       return res.status(400).json({
-        message: 'No podés solicitar este viaje porque ya ha comenzado o su fecha de salida ya pasó.'
+        message:
+          'No podés solicitar este viaje porque ya ha comenzado o su fecha de salida ya pasó.',
       });
     }
     const solicitudPrevia = await em.findOne(SolicitudViaje, {
       usuario: usuario,
       viaje: viaje,
-      estadoSolicitud: { $in: ['pendiente', 'aprobada'] }
+      estadoSolicitud: { $in: ['pendiente', 'aprobada'] },
     });
 
     if (solicitudPrevia) {
-      return res.status(400).json({ message: 'Ya has solicitado unirte a este viaje previamente.' });
+      return res.status(400).json({
+        message: 'Ya has solicitado unirte a este viaje previamente.',
+      });
     }
 
     const datosSolictudViaje = {
@@ -339,11 +345,9 @@ async function CU08CancelarSolicitudDeViaje(req: Request, res: Response) {
     if (
       !estadosValidos.includes(solicitud.estadoSolicitud as EstadoSolicitud)
     ) {
-      return res
-        .status(400)
-        .json({
-          message: 'Solo se pueden cancelar solicitudes pendientes o aprobadas',
-        });
+      return res.status(400).json({
+        message: 'Solo se pueden cancelar solicitudes pendientes o aprobadas',
+      });
     }
 
     if (solicitud.viaje.viajeEstado !== EstadoViaje.PENDIENTE) {
@@ -525,7 +529,7 @@ async function ComenzarViaje(req: Request, res: Response) {
 
     res.status(200).json({
       message: 'El viaje ha comenzado.',
-      nuevoEstado: viaje.viajeEstado
+      nuevoEstado: viaje.viajeEstado,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -535,9 +539,13 @@ async function ComenzarViaje(req: Request, res: Response) {
 async function CU10FinalizarViaje(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
-    const viaje = await em.findOne(Viaje, { viajeId: idViaje }, {
-      populate: ['solicitudes.usuario']
-    });
+    const viaje = await em.findOne(
+      Viaje,
+      { viajeId: idViaje },
+      {
+        populate: ['solicitudes.usuario'],
+      },
+    );
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
@@ -546,23 +554,79 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
 
     const pasajerosACalificar = viaje.solicitudes
       .getItems()
-      .filter(s => s.estadoSolicitud === 'Aprobada')
-      .map(s => ({
+      .filter((s) => s.estadoSolicitud === 'Aprobada')
+      .map((s) => ({
         idUsuario: s.usuario.idUsuario,
         nombre: s.usuario.nombreUsuario,
-        apellido: s.usuario.apellidoUsuario
+        apellido: s.usuario.apellidoUsuario,
       }));
 
     res.status(200).json({
       message: 'Viaje finalizado con éxito.',
       nuevoEstado: viaje.viajeEstado,
-      pasajeros: pasajerosACalificar
+      pasajeros: pasajerosACalificar,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 }
+async function obtenerRutasFrecuentesSQL() {
+  const query = `
+    SELECT 
+      o.nombre AS "nombreOrigen", 
+      d.nombre AS "nombreDestino", 
+      COUNT(*) AS "cantidadDeViajes", 
+      AVG(v.viaje_precio) AS "viajePrecioPromedio"
+    FROM viaje v
+    JOIN localidad o ON v.viaje_origen_id = o.id
+    JOIN localidad d ON v.viaje_destino_id = d.id
+    WHERE v.viaje_fecha >= CURRENT_DATE - INTERVAL '30 days' 
+    GROUP BY o.nombre, d.nombre
+    ORDER BY "cantidadDeViajes" DESC
+    LIMIT 15;
+  `;
 
+  const resultados = await em.getConnection().execute(query);
+
+  const rutas = resultados.map((ruta: any, index: number) => ({
+    indice: index + 1,
+    nombreOrigen: ruta.nombreOrigen,
+    nombreDestino: ruta.nombreDestino,
+    cantidadDeViajes: Number(ruta.cantidadDeViajes),
+    viajePrecioPromedio: Number(ruta.viajePrecioPromedio),
+  }));
+
+  return rutas;
+}
+
+async function CUU14InformeDeRutas(req: Request, res: Response) {
+  try {
+    const rutas = await obtenerRutasFrecuentesSQL();
+
+    let cantTotalViajes = 0;
+    let precioTotal = 0;
+    for (let index = 0; index < rutas.length; index++) {
+      const element = rutas[index];
+      cantTotalViajes = element.cantidadDeViajes + cantTotalViajes;
+      precioTotal =
+        element.viajePrecioPromedio * element.cantidadDeViajes + precioTotal;
+    }
+    const precioTotalPromedio = precioTotal / cantTotalViajes;
+
+    res.status(200).json({
+      message: 'Informe generado correctamente',
+      data: {
+        rutas: rutas,
+        resumen: {
+          cantidadTotalViajes: cantTotalViajes,
+          precioPromedioGeneral: Number(precioTotalPromedio.toFixed(2)),
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
 
 export {
   CU05PublicarViaje,
@@ -579,4 +643,5 @@ export {
   CUU09AprobarDenegarSolicitudes04,
   ComenzarViaje,
   CU10FinalizarViaje,
+  CUU14InformeDeRutas,
 };

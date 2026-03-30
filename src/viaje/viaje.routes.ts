@@ -16,10 +16,8 @@ import {
   CUU09AprobarDenegarSolicitudes04,
   ComenzarViaje,
   CU10FinalizarViaje,
+  CUU14InformeDeRutas,
 } from './viaje.controller.js';
-import { verifyToken } from '../usuario/usuario.controller.js';
-
-import { vi } from 'zod/locales';
 
 export const viajeRouter = Router();
 
@@ -54,6 +52,7 @@ viajeRouter.patch(
   '/solicitudes-aprobadas-rechazadas-viaje-denegar/:id',
   CUU09AprobarDenegarSolicitudes04,
 );
-viajeRouter.get('/solicitudes', GetAllSolicitudes);
+
+viajeRouter.get('/informe-rutas-mas-frecuentes', CUU14InformeDeRutas);
 
 viajeRouter.get('/solicitudes', GetAllSolicitudes);

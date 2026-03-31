@@ -16,6 +16,8 @@ import {
   CUU09AprobarDenegarSolicitudes04,
   ComenzarViaje,
   CU10FinalizarViaje,
+  CU11RegistrarCalificacionViajeComoPasajero,
+  obtenerViajesSinCalificarPasajero,
   CUU14InformeDeRutas,
 } from './viaje.controller.js';
 
@@ -29,12 +31,14 @@ viajeRouter.post(
   solicitudViajeValidator,
   CU07SolicitarViaje02,
 );
+viajeRouter.post('/calificar-conductor', CU11RegistrarCalificacionViajeComoPasajero);
 viajeRouter.patch('/cancelar/:id', CU06CancelarViaje);
 viajeRouter.patch('/cancelar-solicitud/:id', CU08CancelarSolicitudDeViaje);
 viajeRouter.patch('/comenzar/:id', ComenzarViaje);
 viajeRouter.patch('/finalizar/:id', CU10FinalizarViaje);
 viajeRouter.get('/mis-solicitudes/:idUsuario', getMisSolicitudes);
 viajeRouter.get('/mis-publicaciones/:idUsuario', getMisPublicaciones);
+viajeRouter.get('/viajes-sin-calificar/:usuarioId', obtenerViajesSinCalificarPasajero);
 viajeRouter.get(
   '/solicitudes-pendientes-viaje/:id',
   CUU09AprobarDenegarSolicitudes01,

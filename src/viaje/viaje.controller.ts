@@ -6,6 +6,8 @@ import { Usuario } from '../usuario/usuario.entity.js';
 import { viajeSchema } from './viaje.schema.js';
 import { SolicitudViajeSchema } from './solicitudViaje.schema.js';
 import { SolicitudViaje } from './solicitudViaje.entity.js';
+import { Calificacion } from '../calificacion/calificacion.entity.js';
+import { registrarCalificacionGenerica } from '../calificacion/calificacion.controller.js';
 import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
 import { enviarNotificacionEmail } from '../shared/resend.js';
 import { populate } from 'dotenv';
@@ -570,6 +572,48 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
     res.status(500).json({ message: error.message });
   }
 }
+
+// ESTO ES LO ÚNICO QUE FALTA EN EL BACK
+async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
+  try {
+    const usuarioId = Number(req.params.usuarioId);
+
+    // 1. Buscamos solicitudes donde el usuario fue pasajero, fue APROBADO y el viaje ya FINALIZÓ
+    // (Asegurate que el estado sea 'finalizado' o 'realizado' según lo que charlamos antes)
+    const solicitudes = await em.find(SolicitudViaje, {
+      usuario: { idUsuario: usuarioId },
+      estadoSolicitud: 'Aprobada',
+      viaje: { viajeEstado: 'finalizado' }
+    }, { populate: ['viaje', 'viaje.usuarioConductor'] as any });
+
+    // Buscamos qué viajes ya calificó este pasajero para no repetirlos
+    const calificacionesHechas = await em.find(Calificacion, {
+      calificacionTipo: 'Conductor'
+    }, { populate: ['viaje'] as any });
+
+    const idsViajesYaCalificados = calificacionesHechas.map(c => c.viaje.viajeId);
+
+    // Filtramos Solicitudes de viajes que NO están en la lista de calificados
+    const pendientes = solicitudes
+      .filter(s => !idsViajesYaCalificados.includes(s.viaje.viajeId))
+      .map(s => ({
+        viajeId: s.viaje.viajeId,
+        idUsuario: s.viaje.usuarioConductor.idUsuario, // El conductor a calificar
+        nombre: s.viaje.usuarioConductor.nombreUsuario,
+        apellido: s.viaje.usuarioConductor.apellidoUsuario,
+      }));
+
+    res.status(200).json(pendientes);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+async function CU11RegistrarCalificacionViajeComoPasajero(req: Request, res: Response) {
+  req.body.tipo = 'Conductor';
+  return registrarCalificacionGenerica(req, res);
+}
+
 async function obtenerRutasFrecuentesSQL() {
   const query = `
     SELECT 
@@ -641,5 +685,7 @@ export {
   CUU09AprobarDenegarSolicitudes04,
   ComenzarViaje,
   CU10FinalizarViaje,
+  CU11RegistrarCalificacionViajeComoPasajero,
+  obtenerViajesSinCalificarPasajero,
   CUU14InformeDeRutas,
 };

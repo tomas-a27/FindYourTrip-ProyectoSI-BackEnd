@@ -12,11 +12,11 @@ async function registrarCalificacionGenerica(req: Request, res: Response) {
     const {
       viajeId,
       usuarioCalificadoId,
+      usuarioCalificadorId,
       puntos,
       tipo,
       comentario,
-      reporte // Objeto opcional: { motivo(descripcionInfraccion), comentario(comentarioInfraccion) }   VER SI COMENTARIO DE INFRACCION VA O NO, 
-      //si no va el comentario de infraccion, entonces aca solo nos traemos el motivo y no el objeto reporte
+      reporte
     } = req.body;
 
     if (!puntos) {
@@ -24,15 +24,17 @@ async function registrarCalificacionGenerica(req: Request, res: Response) {
     }
 
     const viaje = await em.findOne(Viaje, { viajeId });
-    const usuarioCalificado = await em.findOne(Usuario, { idUsuario: usuarioCalificadoId });
+    const Calificado = await em.findOne(Usuario, { idUsuario: usuarioCalificadoId });
+    const Calificador = await em.findOne(Usuario, { idUsuario: usuarioCalificadorId });
 
-    if (!viaje || !usuarioCalificado) {
+    if (!viaje || !Calificado || !Calificador) {
       return res.status(404).json({ message: 'Datos de viaje o usuario no encontrados.' });
     }
  
     const nuevaCalificacion = em.create(Calificacion, {
       viaje: viaje,
-      usuario: usuarioCalificado,
+      usuarioCalificado: Calificado,
+      usuarioCalificador: Calificador,
       calificacionValoracionLikert: puntos,
       calificacionTipo: tipo,
       comentarioCalificacion: comentario ? String(comentario) : undefined

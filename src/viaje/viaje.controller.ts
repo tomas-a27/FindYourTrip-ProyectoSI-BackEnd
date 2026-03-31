@@ -573,32 +573,31 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
   }
 }
 
-// ESTO ES LO ÚNICO QUE FALTA EN EL BACK
 async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
   try {
     const usuarioId = Number(req.params.usuarioId);
 
-    // 1. Buscamos solicitudes donde el usuario fue pasajero, fue APROBADO y el viaje ya FINALIZÓ
-    // (Asegurate que el estado sea 'finalizado' o 'realizado' según lo que charlamos antes)
+    // Buscamos solicitudes aprobadas en viajes finalizados
     const solicitudes = await em.find(SolicitudViaje, {
       usuario: { idUsuario: usuarioId },
       estadoSolicitud: 'Aprobada',
       viaje: { viajeEstado: 'finalizado' }
     }, { populate: ['viaje', 'viaje.usuarioConductor'] as any });
 
-    // Buscamos qué viajes ya calificó este pasajero para no repetirlos
+    // Buscamos calificaciones que el pasajero ya hizo para esos viajes
     const calificacionesHechas = await em.find(Calificacion, {
+      usuarioCalificador: { idUsuario: usuarioId }, 
       calificacionTipo: 'Conductor'
     }, { populate: ['viaje'] as any });
 
     const idsViajesYaCalificados = calificacionesHechas.map(c => c.viaje.viajeId);
 
-    // Filtramos Solicitudes de viajes que NO están en la lista de calificados
+    // Pendientes: los que están en solicitudes pero no en calificacionesHechas
     const pendientes = solicitudes
       .filter(s => !idsViajesYaCalificados.includes(s.viaje.viajeId))
       .map(s => ({
         viajeId: s.viaje.viajeId,
-        idUsuario: s.viaje.usuarioConductor.idUsuario, // El conductor a calificar
+        idUsuario: s.viaje.usuarioConductor.idUsuario,
         nombre: s.viaje.usuarioConductor.nombreUsuario,
         apellido: s.viaje.usuarioConductor.apellidoUsuario,
       }));

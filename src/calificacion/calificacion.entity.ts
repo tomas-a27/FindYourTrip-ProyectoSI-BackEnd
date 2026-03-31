@@ -16,8 +16,11 @@ export class Calificacion {
     @Property({ nullable: true })
     comentarioCalificacion?: string
 
+    @ManyToOne(() => Usuario)
+    usuarioCalificador!: Usuario;
+
     @ManyToOne(()=>Usuario)
-    usuario!: Usuario
+    usuarioCalificado!: Usuario;
 
     @ManyToOne(()=> Viaje)
     viaje!: Viaje

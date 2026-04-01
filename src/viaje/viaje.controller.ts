@@ -490,25 +490,36 @@ async function CUU09AprobarDenegarSolicitudes02(req: Request, res: Response) {
 async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
   try {
     const idSolicitud = Number.parseInt(req.params.id as string);
-    const solicitud = await em.findOneOrFail(SolicitudViaje, {
-      solViajeId: idSolicitud,
-    }, { populate: ['viaje'] }); 
+    const solicitud = await em.findOneOrFail(
+      SolicitudViaje,
+      {
+        solViajeId: idSolicitud,
+      },
+      { populate: ['viaje'] },
+    );
 
-    // Validamos que la solicitud siga pendiente 
+    // Validamos que la solicitud siga pendiente
     if (solicitud.estadoSolicitud !== EstadoSolicitud.PENDIENTE) {
-        return res.status(400).json({ message: 'La solicitud ya no está pendiente' });
+      return res
+        .status(400)
+        .json({ message: 'La solicitud ya no está pendiente' });
     }
 
-    // Calculamos si hay lugar 
-    const ocupados = await em.count(SolicitudViaje, { viaje: solicitud.viaje, estadoSolicitud: EstadoSolicitud.APROBADA });
+    // Calculamos si hay lugar
+    const ocupados = await em.count(SolicitudViaje, {
+      viaje: solicitud.viaje,
+      estadoSolicitud: EstadoSolicitud.APROBADA,
+    });
     if (ocupados >= solicitud.viaje.viajeCantLugares) {
-        return res.status(400).json({ message: 'El viaje ya está completo.' });
+      return res.status(400).json({ message: 'El viaje ya está completo.' });
     }
 
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.APROBADA });
     await em.flush();
 
-    return res.status(200).json({ message: 'Solicitud aprobada correctamente' }); 
+    return res
+      .status(200)
+      .json({ message: 'Solicitud aprobada correctamente' });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
@@ -524,7 +535,9 @@ async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.DENEGADA });
     await em.flush();
 
-    return res.status(200).json({ message: 'Solicitud denegada correctamente' });
+    return res
+      .status(200)
+      .json({ message: 'Solicitud denegada correctamente' });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
@@ -589,24 +602,34 @@ async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
     const usuarioId = Number(req.params.usuarioId);
 
     // Buscamos solicitudes aprobadas en viajes finalizados
-    const solicitudes = await em.find(SolicitudViaje, {
-      usuario: { idUsuario: usuarioId },
-      estadoSolicitud: 'Aprobada',
-      viaje: { viajeEstado: 'finalizado' }
-    }, { populate: ['viaje', 'viaje.usuarioConductor'] as any });
+    const solicitudes = await em.find(
+      SolicitudViaje,
+      {
+        usuario: { idUsuario: usuarioId },
+        estadoSolicitud: 'Aprobada',
+        viaje: { viajeEstado: 'finalizado' },
+      },
+      { populate: ['viaje', 'viaje.usuarioConductor'] as any },
+    );
 
     // Buscamos calificaciones que el pasajero ya hizo para esos viajes
-    const calificacionesHechas = await em.find(Calificacion, {
-      usuarioCalificador: { idUsuario: usuarioId }, 
-      calificacionTipo: 'Conductor'
-    }, { populate: ['viaje'] as any });
+    const calificacionesHechas = await em.find(
+      Calificacion,
+      {
+        usuarioCalificador: { idUsuario: usuarioId },
+        calificacionTipo: 'Conductor',
+      },
+      { populate: ['viaje'] as any },
+    );
 
-    const idsViajesYaCalificados = calificacionesHechas.map(c => c.viaje.viajeId);
+    const idsViajesYaCalificados = calificacionesHechas.map(
+      (c) => c.viaje.viajeId,
+    );
 
     // Pendientes: los que están en solicitudes pero no en calificacionesHechas
     const pendientes = solicitudes
-      .filter(s => !idsViajesYaCalificados.includes(s.viaje.viajeId))
-      .map(s => ({
+      .filter((s) => !idsViajesYaCalificados.includes(s.viaje.viajeId))
+      .map((s) => ({
         viajeId: s.viaje.viajeId,
         idUsuario: s.viaje.usuarioConductor.idUsuario,
         nombre: s.viaje.usuarioConductor.nombreUsuario,
@@ -619,7 +642,10 @@ async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
   }
 }
 
-async function CU11RegistrarCalificacionViajeComoPasajero(req: Request, res: Response) {
+async function CU11RegistrarCalificacionViajeComoPasajero(
+  req: Request,
+  res: Response,
+) {
   req.body.tipo = 'Conductor';
   return registrarCalificacionGenerica(req, res);
 }
@@ -656,32 +682,15 @@ SELECT
 async function CUU14InformeDeRutas(req: Request, res: Response) {
   try {
     const rutas = await obtenerRutasFrecuentesSQL();
-    
-    let cantTotalViajes = 0;
-    let precioTotal = 0;
-    for (let index = 0; index < rutas.length; index++) {
-      const element = rutas[index];
-      cantTotalViajes = element.cantidadDeViajes + cantTotalViajes;
-      precioTotal =
-        element.viajePrecioPromedio * element.cantidadDeViajes + precioTotal;
-  
+
+    if (rutas.length === 0) {
+      return res.status(404).json({
+        message: 'No se han registrado viajes en los últimos 30 días.',
+      });
     }
-
-    
-    if (cantTotalViajes === 0) {
-      res.status(404).json({ message: 'No se han registrado viajes en los últimos 30 días.' });
-      return;
-    }
-    const precioTotalPromedio = precioTotal / cantTotalViajes;
-
-
     res.status(200).json({
       message: 'Informe generado correctamente',
-      data: {
-        rutas: rutas,
-        cantidadTotalViajes: cantTotalViajes,
-        precioPromedioGeneral: Number(precioTotalPromedio.toFixed(2)),
-      },
+      data: rutas,
     });
   } catch (error: any) {
     res.status(400).json({ message: error.message });

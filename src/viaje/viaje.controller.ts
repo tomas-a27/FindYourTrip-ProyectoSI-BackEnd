@@ -492,14 +492,25 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
     const idSolicitud = Number.parseInt(req.params.id as string);
     const solicitud = await em.findOneOrFail(SolicitudViaje, {
       solViajeId: idSolicitud,
-    });
+    }, { populate: ['viaje'] }); 
+
+    // Validamos que la solicitud siga pendiente 
+    if (solicitud.estadoSolicitud !== EstadoSolicitud.PENDIENTE) {
+        return res.status(400).json({ message: 'La solicitud ya no está pendiente' });
+    }
+
+    // Calculamos si hay lugar 
+    const ocupados = await em.count(SolicitudViaje, { viaje: solicitud.viaje, estadoSolicitud: EstadoSolicitud.APROBADA });
+    if (ocupados >= solicitud.viaje.viajeCantLugares) {
+        return res.status(400).json({ message: 'El viaje ya está completo.' });
+    }
 
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.APROBADA });
     await em.flush();
 
-    res.status(201);
+    return res.status(200).json({ message: 'Solicitud aprobada correctamente' }); 
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -513,9 +524,9 @@ async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.DENEGADA });
     await em.flush();
 
-    res.status(201);
+    return res.status(200).json({ message: 'Solicitud denegada correctamente' });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 }
 

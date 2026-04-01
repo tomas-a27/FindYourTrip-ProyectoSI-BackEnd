@@ -10,9 +10,6 @@ import { Calificacion } from '../calificacion/calificacion.entity.js';
 import { registrarCalificacionGenerica } from '../calificacion/calificacion.controller.js';
 import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
 import { enviarNotificacionEmail } from '../shared/resend.js';
-import { populate } from 'dotenv';
-import { tr } from 'zod/locales';
-import { group } from 'node:console';
 
 const em = orm.em;
 
@@ -546,11 +543,28 @@ async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
 async function ComenzarViaje(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
-    const viaje = await em.findOne(Viaje, { viajeId: idViaje });
+    const viaje = await em.findOne(
+      Viaje,
+      { viajeId: idViaje },
+      { populate: ['solicitudes'] },
+    );
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
-    viaje.viajeEstado = 'enCurso';
+    if (viaje.viajeEstado === EstadoViaje.EN_CURSO) {
+      return res
+        .status(400)
+        .json({ message: 'El viaje ya se encuentra en curso' });
+    }
+
+    for (let index = 0; index < viaje.solicitudes.length; index++) {
+      if (
+        viaje.solicitudes[index].estadoSolicitud === EstadoSolicitud.PENDIENTE
+      ) {
+        viaje.solicitudes[index].estadoSolicitud = EstadoSolicitud.DENEGADA;
+      }
+    }
+    viaje.viajeEstado = EstadoViaje.EN_CURSO;
     await em.flush();
 
     res.status(200).json({

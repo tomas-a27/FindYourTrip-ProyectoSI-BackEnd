@@ -697,11 +697,6 @@ async function CUU14InformeDeRutas(req: Request, res: Response) {
   try {
     const rutas = await obtenerRutasFrecuentesSQL();
 
-    if (rutas.length === 0) {
-      return res.status(404).json({
-        message: 'No se han registrado viajes en los últimos 30 días.',
-      });
-    }
     res.status(200).json({
       message: 'Informe generado correctamente',
       data: rutas,

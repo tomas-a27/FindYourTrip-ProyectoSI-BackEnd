@@ -204,8 +204,6 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
     //Habria que cambiar lo de user id, el lugar donde se obtiene
     const usuarioId = Number.parseInt(req.query.usuarioId as string);
 
-    /*const usuario = await em.findOne(Usuario, { idUsuario: usuarioId });*/
-
     let idsYaSolicitados: number[] = [];
     if (!isNaN(usuarioId)) {
       const solicitudesPrevias = await em.find(

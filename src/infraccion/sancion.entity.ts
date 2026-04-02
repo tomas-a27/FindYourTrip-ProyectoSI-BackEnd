@@ -11,7 +11,7 @@ export class Sancion {
     sancionFechaIni!: Date
 
     @Property()
-    sancionDescripcion?: string
+    sancionDescripcion!: string
 
     @Property({ nullable: true })
     sancionFechaFin?: Date

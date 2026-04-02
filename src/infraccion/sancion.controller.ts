@@ -51,18 +51,17 @@ async function obtenerUsuariosASancionar(req: Request, res: Response) {
 
         const ultimaSancion = sanciones[0];
 
-        // si fechaFin menor a últimas infracciones
-        if (
-          ultimaSancion.sancionFechaFin &&
-          new Date(ultimaSancion.sancionFechaFin) < new Date(fechaUltimaInfraccion)
-        ) {
-          cumpleCondicion = true;
-        }
-
-        // sanción desestimada sin fechaFin
+        // si la sanción está desestimada, no se muestra
         if (
           !ultimaSancion.sancionFechaFin &&
           ultimaSancion.sancionDescripcion === 'Desestimada'
+        ) {
+          cumpleCondicion = false;
+        }
+        // si ya terminó y hay nuevas infracciones, si se muestra
+        else if (
+          ultimaSancion.sancionFechaFin &&
+          new Date(ultimaSancion.sancionFechaFin) < new Date(fechaUltimaInfraccion)
         ) {
           cumpleCondicion = true;
         }

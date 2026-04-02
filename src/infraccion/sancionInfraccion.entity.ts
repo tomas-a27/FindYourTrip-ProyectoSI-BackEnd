@@ -1,6 +1,5 @@
 import {
   Entity,
-  Property,
   ManyToOne,
   Collection,
   ManyToMany,
@@ -8,10 +7,11 @@ import {
 } from '@mikro-orm/core';
 import { Infraccion } from '../infraccion/infraccion.entity.js';
 import { Sancion } from './sancion.entity.js';
+
 @Entity()
 export class SancionInfraccion {
   @PrimaryKey()
-  idSancionInfraccion!: number;
+  idSancionInfraccion?: number;
 
   @ManyToOne(() => Sancion, { nullable: false })
   sancion!: Sancion;

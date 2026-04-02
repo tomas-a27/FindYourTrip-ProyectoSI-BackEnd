@@ -5,16 +5,16 @@ import { Usuario } from '../usuario/usuario.entity.js'
 export class Sancion {
 
     @PrimaryKey()
-    idSancion!: number
+    idSancion?: number
 
     @Property()
     sancionFechaIni!: Date
 
     @Property()
-    sancionDescripcion?: string
+    sancionDescripcion!: string
 
-    @Property()
-    sancionFechaFin!: Date
+    @Property({ nullable: true })
+    sancionFechaFin?: Date
     
 
     @ManyToOne(()=> Usuario, {nullable: false})

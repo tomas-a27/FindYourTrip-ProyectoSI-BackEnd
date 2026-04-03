@@ -35,7 +35,7 @@ async function registrarCalificacionGenerica(req: Request, res: Response) {
       viaje: viaje,
       usuarioCalificado: Calificado,
       usuarioCalificador: Calificador,
-      calificacionValoracionLikert: puntos,
+      calificacionValoracionLikert: Number(puntos),
       calificacionTipo: tipo,
       comentarioCalificacion: comentario ? String(comentario) : undefined
     });
@@ -52,6 +52,30 @@ async function registrarCalificacionGenerica(req: Request, res: Response) {
       });
       em.persist(nuevaInfraccion);
     }
+    await em.flush();
+
+    // Actualizamos promedio del usuario calificado
+    const calificaciones = await em.find(Calificacion, { usuarioCalificado: Calificado });
+    let sumaPas = 0, cantPas = 0;
+    let sumaCond = 0, cantCond = 0;
+
+    for (const c of calificaciones) {
+      if (c.calificacionTipo && c.calificacionTipo.toLowerCase() === 'pasajero') {
+        sumaPas += Number(c.calificacionValoracionLikert);
+        cantPas++;
+      } else if (c.calificacionTipo && c.calificacionTipo.toLowerCase() === 'conductor') {
+        sumaCond += Number(c.calificacionValoracionLikert);
+        cantCond++;
+      }
+    }
+
+    if (cantPas > 0) {
+      Calificado.calificacionPas = parseFloat((sumaPas / cantPas).toFixed(2));
+    }
+    if (cantCond > 0) {
+      Calificado.calificacionConductor = parseFloat((sumaCond / cantCond).toFixed(2));
+    }
+    
     await em.flush();
 
     res.status(201).json({

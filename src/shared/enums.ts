@@ -30,6 +30,7 @@ export enum GeneroUsuario {
   MASCULINO = 'Masculino',
   FEMENINO = 'Femenino',
   OTRO = 'Otro',
+  PREFIERO_NO_DECIRLO = 'Prefiero no decirlo',
 }
 
 export enum EstadoSolicitud {

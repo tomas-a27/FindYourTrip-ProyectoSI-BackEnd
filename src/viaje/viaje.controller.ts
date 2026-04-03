@@ -10,6 +10,7 @@ import { Calificacion } from '../calificacion/calificacion.entity.js';
 import { registrarCalificacionGenerica } from '../calificacion/calificacion.controller.js';
 import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
 import { enviarNotificacionEmail } from '../shared/resend.js';
+import { MailService } from '../shared/notifications.js';
 
 const em = orm.em;
 
@@ -492,7 +493,7 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
       {
         solViajeId: idSolicitud,
       },
-      { populate: ['viaje'] },
+      { populate: ['viaje', 'usuario', 'viaje.viajeOrigen', 'viaje.viajeDestino'] },
     );
 
     // Validamos que la solicitud siga pendiente
@@ -512,7 +513,41 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
     }
 
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.APROBADA });
+
+    //cancelar solicitudes del pasajero con la misma fecha, origen y destino
+    const solapadas = await em.find(SolicitudViaje, {
+      usuario: solicitud.usuario,
+      estadoSolicitud: EstadoSolicitud.PENDIENTE,
+      solViajeId: { $ne: idSolicitud }, // Que no sea la que estamos aprobando
+      viaje: {
+        viajeOrigen: solicitud.viaje.viajeOrigen,
+        viajeDestino: solicitud.viaje.viajeDestino,
+        viajeFecha: solicitud.viaje.viajeFecha
+      }
+    });
+
+    for (const s of solapadas) {
+      s.estadoSolicitud = EstadoSolicitud.CANCELADA;
+    }
+
+    //si se llena el viaje, cancelar las demas solicitudes
+    if (ocupados + 1 === solicitud.viaje.viajeCantLugares) {
+      const restantes = await em.find(SolicitudViaje, {
+        viaje: solicitud.viaje,
+        estadoSolicitud: EstadoSolicitud.PENDIENTE,
+        solViajeId: { $ne: idSolicitud }
+      }, { populate: ['usuario'] });
+
+      for (const s of restantes) {
+        s.estadoSolicitud = EstadoSolicitud.DENEGADA;
+        // Notificamos por mail el rechazo automático por cupo lleno
+        await MailService.enviarMailSolicitudViajeDenegada(s.usuario, solicitud.viaje);
+      }
+    }
+
     await em.flush();
+
+    await MailService.enviarMailSolicitudViajeAprobada(solicitud.usuario, solicitud.viaje);
 
     return res
       .status(200)
@@ -527,11 +562,12 @@ async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
     const idSolicitud = Number.parseInt(req.params.id as string);
     const solicitud = await em.findOneOrFail(SolicitudViaje, {
       solViajeId: idSolicitud,
-    });
+    }, { populate: ['usuario', 'viaje', 'viaje.viajeDestino', 'viaje.viajeOrigen'] as any });
 
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.DENEGADA });
     await em.flush();
 
+    await MailService.enviarMailSolicitudViajeDenegada(solicitud.usuario, solicitud.viaje);
     return res
       .status(200)
       .json({ message: 'Solicitud denegada correctamente' });
@@ -546,7 +582,7 @@ async function ComenzarViaje(req: Request, res: Response) {
     const viaje = await em.findOne(
       Viaje,
       { viajeId: idViaje },
-      { populate: ['solicitudes'] },
+      { populate: ['solicitudes', 'solicitudes.usuario', 'viajeDestino', 'viajeOrigen'] as any },
     );
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
@@ -562,6 +598,10 @@ async function ComenzarViaje(req: Request, res: Response) {
         viaje.solicitudes[index].estadoSolicitud === EstadoSolicitud.PENDIENTE
       ) {
         viaje.solicitudes[index].estadoSolicitud = EstadoSolicitud.DENEGADA;
+        await MailService.enviarMailSolicitudViajeDenegada(
+          viaje.solicitudes[index].usuario,
+          viaje
+        );
       }
     }
     viaje.viajeEstado = EstadoViaje.EN_CURSO;

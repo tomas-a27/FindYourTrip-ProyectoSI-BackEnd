@@ -48,7 +48,7 @@ export class Usuario {
   @Property()
   generoUsuario!: string;
 
-  @Property({ nullable: true })
+  @Property({ type: 'float', nullable: true })
   calificacionPas?: number;
 
   @Enum({ items: () => EstadoUsuario, default: EstadoUsuario.HABILITADO })
@@ -63,7 +63,7 @@ export class Usuario {
   @Property({ type: 'longblob', nullable: true })
   fotoLicenciaConductorUsuario?: Buffer;
 
-  @Property({ nullable: true })
+  @Property({ type: 'float', nullable: true })
   calificacionConductor?: number;
 
   @Enum({ items: () => EstadoConductor, nullable: true })

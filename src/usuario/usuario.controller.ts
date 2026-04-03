@@ -399,6 +399,16 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     // cambiamos el tipo de usuario
     if (estadoConductor === EstadoConductor.APROBADO) {
       usuario.tipoUsuario = TipoUsuario.CONDUCTOR;
+
+    } else if (estadoConductor === EstadoConductor.DENEGADO) {
+      usuario.nroLicenciaConductorUsuario = undefined;
+      usuario.vigenciaLicenciaConductorUsuario = undefined;
+      usuario.fotoLicenciaConductorUsuario = undefined;
+      const vehiculos = await em.find(Vehiculo, { usuario: usuario });
+      for (const v of vehiculos) {
+        em.remove(v);
+      }
+      await em.flush();
     }
 
     // Actualizamos el estado del trámite

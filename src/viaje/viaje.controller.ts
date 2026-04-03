@@ -205,8 +205,6 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
     //Habria que cambiar lo de user id, el lugar donde se obtiene
     const usuarioId = Number.parseInt(req.query.usuarioId as string);
 
-    /*const usuario = await em.findOne(Usuario, { idUsuario: usuarioId });*/
-
     let idsYaSolicitados: number[] = [];
     if (!isNaN(usuarioId)) {
       const solicitudesPrevias = await em.find(
@@ -746,6 +744,56 @@ async function CUU14InformeDeRutas(req: Request, res: Response) {
   }
 }
 
+async function obtenerPasajerosViajeRealizado(req: Request, res: Response) {
+  try {
+    const idViaje = Number.parseInt(req.params.id as string);
+    
+    const viaje = await em.findOne(Viaje, { viajeId: idViaje }, { populate: ['viajeOrigen', 'viajeDestino', 'solicitudes', 'solicitudes.usuario'] });
+    
+    if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
+
+    const calificacionesDelConductor = await em.find(Calificacion, {
+      viaje: viaje,
+      usuarioCalificador: viaje.usuarioConductor ,
+      calificacionTipo: 'Pasajero'
+    }, { populate: ['usuarioCalificado'] });
+
+    const pasajerosAprobados = viaje.solicitudes
+      .getItems()
+      .filter((s) => s.estadoSolicitud.toLowerCase() === 'aprobada');
+
+    const resultado = pasajerosAprobados.map(solicitud => {
+      const pasajero = solicitud.usuario;
+        const calificacionDada = calificacionesDelConductor.find(
+          c => c.usuarioCalificado.idUsuario === pasajero.idUsuario
+      );
+
+      return {
+          idUsuario: pasajero.idUsuario,
+          nombre: pasajero.nombreUsuario,
+          apellido: pasajero.apellidoUsuario,
+          fotoPerfil: pasajero.fotoPerfil ? 'foto_ok' : null, 
+          calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null 
+      };
+    });
+
+    res.status(200).json({
+      viajeInfo: {
+        origen: viaje.viajeOrigen.nombre,
+        destino: viaje.viajeDestino.nombre,
+        fecha: viaje.viajeFecha,
+        horario: viaje.viajeHorario
+      },
+      pasajeros: resultado
+    });
+
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+
+
 export {
   CU05PublicarViaje,
   CU06CancelarViaje,
@@ -764,4 +812,5 @@ export {
   CU11RegistrarCalificacionViajeComoPasajero,
   obtenerViajesSinCalificarPasajero,
   CUU14InformeDeRutas,
+  obtenerPasajerosViajeRealizado
 };

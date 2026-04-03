@@ -12,12 +12,8 @@ export const usuarioSchema = z
     tipoDocumento: z.nativeEnum(TipoDocumento, {
       message: 'Seleccione un tipo de documento válido',
     }),
-    nroDocumento: z
-      .string()
-      .min(7, 'Nro. de documento demasiado corto')
-      .refine((val) => !isNaN(Number(val)), {
-        message: 'El número de documento debe ser numérico',
-      }),
+    nroDocumento: z.string().min(7, 'Nro. de documento demasiado corto'),
+
     telefono: z
       .string()
       .min(8, 'Teléfono inválido')

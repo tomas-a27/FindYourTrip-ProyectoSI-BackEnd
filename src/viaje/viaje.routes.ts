@@ -19,6 +19,7 @@ import {
   CU11RegistrarCalificacionViajeComoPasajero,
   obtenerViajesSinCalificarPasajero,
   CUU14InformeDeRutas,
+  obtenerPasajerosViajeRealizado,
 } from './viaje.controller.js';
 
 export const viajeRouter = Router();
@@ -47,6 +48,8 @@ viajeRouter.get(
   '/solicitudes-aprobadas-rechazadas-viaje/:id',
   CUU09AprobarDenegarSolicitudes02,
 );
+viajeRouter.get('/pasajeros-historial/:id', 
+  obtenerPasajerosViajeRealizado);
 viajeRouter.patch(
   '/solicitudes-aprobadas-rechazadas-viaje-aprobar/:id',
   CUU09AprobarDenegarSolicitudes03,

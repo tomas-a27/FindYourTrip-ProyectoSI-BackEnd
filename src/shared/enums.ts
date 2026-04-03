@@ -1,9 +1,12 @@
 export enum TipoDocumento {
   DNI = 'DNI',
   PASAPORTE = 'Pasaporte',
+  CUIT = 'CUIT',
+  CI = 'CI',
+  ERRO = 'ERRO',
   LC = 'LC',
   LE = 'LE',
-  CPI = 'CPI',
+  LEM = 'LEM',
 }
 
 export enum EstadoUsuario {

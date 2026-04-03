@@ -14,6 +14,7 @@ import {
   CUU09AprobarDenegarSolicitudes02,
   CUU09AprobarDenegarSolicitudes03,
   CUU09AprobarDenegarSolicitudes04,
+  getViajeConDisponibilidad,
   ComenzarViaje,
   CU10FinalizarViaje,
   CU11RegistrarCalificacionViajeComoPasajero,
@@ -63,3 +64,5 @@ viajeRouter.patch(
 viajeRouter.get('/informe-rutas-mas-frecuentes', CUU14InformeDeRutas);
 
 viajeRouter.get('/solicitudes', GetAllSolicitudes);
+
+viajeRouter.get('/detalle/:id', getViajeConDisponibilidad);

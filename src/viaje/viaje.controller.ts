@@ -574,6 +574,35 @@ async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
   }
 }
 
+// para obtener un viaje con la cant de lugares disponibles y mostrarlo en solicitudes-mis-viajes
+async function getViajeConDisponibilidad(req: Request, res: Response) {
+  try {
+    const idViaje = Number(req.params.id);
+
+    const viaje = await em.findOne(Viaje, { viajeId: idViaje });
+
+    if (!viaje) {
+      return res.status(404).json({ message: 'Viaje no encontrado' });
+    }
+
+    const ocupados = await em.count(SolicitudViaje, {
+      viaje: viaje,
+      estadoSolicitud: EstadoSolicitud.APROBADA,
+    });
+
+    const lugaresDisponibles = viaje.viajeCantLugares - ocupados;
+
+    return res.status(200).json({
+      data: {
+        ...viaje,
+        lugaresDisponibles,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
 async function ComenzarViaje(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
@@ -807,6 +836,7 @@ export {
   CUU09AprobarDenegarSolicitudes02,
   CUU09AprobarDenegarSolicitudes03,
   CUU09AprobarDenegarSolicitudes04,
+  getViajeConDisponibilidad,
   ComenzarViaje,
   CU10FinalizarViaje,
   CU11RegistrarCalificacionViajeComoPasajero,

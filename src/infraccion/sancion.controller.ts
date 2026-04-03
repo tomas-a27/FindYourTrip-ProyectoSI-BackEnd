@@ -33,9 +33,6 @@ async function obtenerUsuariosASancionar(req: Request, res: Response) {
         new Date(b.infraccionFecha).getTime() - new Date(a.infraccionFecha).getTime()
       );
 
-      const ultimas3 = infracciones.slice(0, 3);
-      const fechaUltimaInfraccion = ultimas3[0].infraccionFecha;
-
       // trae sanciones del usuario
       const sanciones = await em.find(Sancion, { usuario });
 
@@ -51,6 +48,15 @@ async function obtenerUsuariosASancionar(req: Request, res: Response) {
         );
 
         const ultimaSancion = sanciones[0];
+
+        const hoy = new Date();
+
+        if (
+          ultimaSancion.sancionFechaFin &&
+          new Date(ultimaSancion.sancionFechaFin) > hoy
+        ) {
+          continue; // si sigue inhabilitado, no se muestra
+        }
 
         // si la sanción está desestimada, no se muestra
         if (
@@ -69,11 +75,18 @@ async function obtenerUsuariosASancionar(req: Request, res: Response) {
             cumpleCondicion = false;
           }
         }
-        else if (
-          ultimaSancion.sancionFechaFin &&
-          new Date(ultimaSancion.sancionFechaFin) < new Date(fechaUltimaInfraccion)
-        ) {
-          cumpleCondicion = true;
+        else if (ultimaSancion.sancionFechaFin) {
+          const fechaFin = ultimaSancion.sancionFechaFin!;
+          
+          const infraccionesPosteriores = infracciones.filter(i =>
+            new Date(i.infraccionFecha) > new Date(fechaFin)
+          );
+
+          if (infraccionesPosteriores.length >= 3) {
+            cumpleCondicion = true;
+          } else {
+            cumpleCondicion = false;
+          }
         }
       }
 

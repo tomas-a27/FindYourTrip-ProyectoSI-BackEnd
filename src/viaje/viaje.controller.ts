@@ -391,7 +391,28 @@ async function getMisSolicitudes(req: Request, res: Response) {
         orderBy: { solViajeFecha: 'DESC' },
       },
     );
-    res.status(200).json({ data: solicitudes });
+
+    const calificaciones = await em.find(
+      Calificacion,
+      {
+        usuarioCalificador: usuario,
+        calificacionTipo: 'Conductor',
+      },
+      { populate: ['viaje'] as any }
+    );
+
+    const solicitudesJson = JSON.parse(JSON.stringify(solicitudes));
+    const result = solicitudesJson.map((sol: any) => {
+      const calificacionDada = calificaciones.find(
+        (c) => c.viaje.viajeId === sol.viaje?.viajeId
+      );
+      return {
+        ...sol,
+        calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null,
+      };
+    });
+
+    res.status(200).json({ data: result });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

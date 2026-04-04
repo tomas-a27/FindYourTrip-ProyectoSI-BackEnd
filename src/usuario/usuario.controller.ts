@@ -116,7 +116,7 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
   try {
     const userData = req.body.validatedData;
 
-    const existingUser = await em.findOne(Usuario, {
+    const existingUsers = await em.find(Usuario, {
       $or: [
         { telefono: userData.telefono },
         { email: userData.email },
@@ -126,10 +126,19 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
         },
       ],
     });
-    if (existingUser) {
+    
+    if (existingUsers.length > 0) {
+      const conflictos: string[] = [];
+      for (const existingUser of existingUsers) {
+        if (existingUser.email === userData.email && !conflictos.includes('email')) conflictos.push('email');
+        if (existingUser.telefono === userData.telefono && !conflictos.includes('teléfono')) conflictos.push('teléfono');
+        if (existingUser.tipoDocumento === userData.tipoDocumento && existingUser.nroDocumento === userData.nroDocumento && !conflictos.includes('documento')) conflictos.push('documento');
+      }
+      
+      const conflictoMsg = conflictos.join(', ').replace(/, ([^,]*)$/, ' y $1');
+      
       return res.status(409).json({
-        message:
-          'Ya existe un usuario registrado con ese email, ese teléfono o ese tipo y número de documento',
+        message: `Los siguientes datos ya se encuentran registrados en el sistema: ${conflictoMsg}`,
       });
     }
 

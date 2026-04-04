@@ -108,7 +108,9 @@ async function CU05PublicarViaje(req: Request, res: Response) {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    const fechaViajeObj = new Date(datosViaje.viajeFecha + 'T00:00:00');
+    const [anio, mes, dia] = datosViaje.viajeFecha.split('-').map(Number);
+    const fechaViajeObj = new Date(anio, mes - 1, dia); // Local time
+
     if (fechaViajeObj < hoy) {
       return res
         .status(400)
@@ -262,11 +264,16 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
     }
 
     const ahora = new Date();
+    const [anio, mes, dia] = viaje.viajeFecha.split('-').map(Number);
     const [horas, minutos] = viaje.viajeHorario.split(':').map(Number);
-    const fechaHoraViaje = new Date(viaje.viajeFecha);
+    const fechaHoraViaje = new Date(anio, mes - 1, dia, horas, minutos, 0, 0);
+
     fechaHoraViaje.setHours(horas, minutos, 0, 0);
 
     if (ahora >= fechaHoraViaje) {
+      console.log('Ahora:', ahora.toString());
+      console.log('FechaHoraViaje:', fechaHoraViaje.toString());
+
       return res.status(400).json({
         message:
           'No podés solicitar este viaje porque ya ha comenzado o su fecha de salida ya pasó.',

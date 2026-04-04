@@ -9,7 +9,6 @@ import { SolicitudViaje } from './solicitudViaje.entity.js';
 import { Calificacion } from '../calificacion/calificacion.entity.js';
 import { registrarCalificacionGenerica } from '../calificacion/calificacion.controller.js';
 import { EstadoSolicitud, EstadoViaje } from '../shared/enums.js';
-import { enviarNotificacionEmail } from '../shared/resend.js';
 import { MailService } from '../shared/notifications.js';
 
 const em = orm.em;
@@ -158,27 +157,10 @@ async function CU06CancelarViaje(req: Request, res: Response) {
     );
 
     const promesasEmails = solicitudesAprobadas.map((sol) => {
-      const sujeto = 'Tu viaje programado ha sido cancelado - Find Your Trip';
-      const tituloHeader = `¡Hola, ${sol.usuario.nombreUsuario}!`;
-      const contenidoHtml = `
-    <p>Te informamos que el conductor <b>${viaje.usuarioConductor.nombreUsuario}</b> ha cancelado el siguiente viaje:</p>
-    <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
-      <p style="margin: 5px 0;">📍 <b>Origen:</b> ${viaje.viajeOrigen.nombre}</p>
-      <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
-      <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${viaje.viajeFecha.split('-').reverse().join('/')}</p>
-    </div>
-    ${
-      fueraDeTermino
-        ? '<p>Debido a que la cancelación fue sobre la hora, podés <b>calificar al conductor</b> ingresando a la plataforma para contar tu experiencia.</p>'
-        : '<p>Lamentamos los inconvenientes. Podés buscar nuevos viajes disponibles en la plataforma.</p>'
-    }
-  `;
-
-      return enviarNotificacionEmail(
-        sol.usuario.email,
-        sujeto,
-        tituloHeader,
-        contenidoHtml,
+      return MailService.enviarMailViajeCancelado(
+        sol.usuario,
+        viaje,
+        fueraDeTermino
       ).catch((err) =>
         console.error('Error al enviar mail de cancelación:', err),
       );

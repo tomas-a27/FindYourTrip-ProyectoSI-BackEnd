@@ -16,7 +16,7 @@ import {
   loginSchema,
   aprobacionConductorSchema,
 } from './usuario.schema.js';
-import { enviarNotificacionEmail } from '../shared/resend.js';
+import { MailService } from '../shared/notifications.js';
 
 const em = orm.em;
 em.getRepository(Usuario);
@@ -406,17 +406,9 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
 
     await em.flush();
 
-    const estado = estadoConductor === 'aprobado' ? 'aprobada' : 'denegada';
-    enviarNotificacionEmail(
-      usuario.email,
-      'Novedades sobre tu solicitud para ser conductor',
-      `¡Hola, ${usuario.nombreUsuario}!`,
-      `<p>Tu solicitud para ser conductor ha sido <b>${estado}</b>.</p>
-   ${
-     estadoConductor === 'aprobado'
-       ? '<p>Ya podés publicar viajes como conductor.</p>'
-       : '<p>Lamentablemente no hemos podido aprobar tu solicitud en este momento.</p>'
-   }`,
+    MailService.enviarMailSolicitudParaSerConductor(
+      usuario,
+      estadoConductor
     ).catch((err) => console.error('Error asincrónico al enviar mail:', err));
 
     res.status(200).json({
@@ -519,13 +511,7 @@ async function solicitarRecuperacionContrasena(req: Request, res: Response) {
     usuario.expiracionCodigo = expira;
     await em.flush();
 
-    await enviarNotificacionEmail(
-      usuario.email,
-      'Código de recuperación - Find Your Trip',
-      `Hola ${usuario.nombreUsuario}`,
-      `<p>Tu código de recuperación de contraseña es: <strong><span style="font-size: 24px; letter-spacing: 2px;">${codigo}</span></strong></p>
-      <p>Este código expira en 45 minutos.</p>`,
-    );
+    await MailService.enviarMailCodigoRecuperacion(usuario, codigo);
 
     res
       .status(200)

@@ -5,7 +5,7 @@ import { Infraccion } from './infraccion.entity.js';
 import { Sancion } from './sancion.entity.js';
 import { SancionInfraccion } from './sancionInfraccion.entity.js';
 import { EstadoUsuario } from '../shared/enums.js';
-import { enviarNotificacionEmail } from '../shared/resend.js';
+import { MailService } from '../shared/notifications.js';
 
 const em = orm.em;
 
@@ -217,21 +217,11 @@ async function inhabilitarUsuario(req: Request, res: Response) {
 
     await em.flush();
 
-    enviarNotificacionEmail(
-      usuario.email,
-      'Tu usuario de Find Your Trip fue inhabilitado',
-      `¡Hola, ${usuario.nombreUsuario}!`,
-      `
-        <p>Te informamos que tu cuenta ha sido <b>inhabilitada</b> por el administrador.</p>
-
-        <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
-          <p style="margin: 5px 0;"><b>Motivo:</b> ${motivo}</p>
-          <p style="margin: 5px 0;"><b>Duración:</b> ${dias} días</p>
-          <p style="margin: 5px 0;"><b>Fecha de fin:</b> ${fechaFin.toLocaleDateString()}</p>
-        </div>
-
-        <p>Durante ese periodo no vas a poder usar la plataforma.</p>
-      `
+    MailService.enviarMailInhabilitacion(
+      usuario,
+      motivo,
+      dias,
+      fechaFin
     ).catch((err) =>
       console.error('Error asincrónico al enviar mail:', err)
     );

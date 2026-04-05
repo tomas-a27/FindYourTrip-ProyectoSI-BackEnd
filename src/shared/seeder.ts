@@ -1,6 +1,8 @@
 import { Usuario } from '../usuario/usuario.entity.js';
 import { Vehiculo } from '../usuario/vehiculo.entity.js';
 import { Localidad } from '../localidad/localidad.entity.js';
+import { Viaje } from '../viaje/viaje.entity.js';
+import { SolicitudViaje } from '../viaje/solicitudViaje.entity.js';
 import { orm } from './db/orm.js';
 import {
   EstadoUsuario,
@@ -8,7 +10,9 @@ import {
   GeneroUsuario,
   TipoDocumento,
   TipoUsuario,
+  EstadoViaje,
 } from './enums.js';
+import { date } from 'zod';
 
 export async function seedDatabase() {
   const em = orm.em.fork();
@@ -43,57 +47,101 @@ export async function seedDatabase() {
   const bufferLicenciaMaria = Buffer.from(await resLicenciaMaria.arrayBuffer());
 
   const hashPsw1 = await Usuario.hashPassword('admin123');
-  em.create(Usuario, {
-    tipoUsuario: TipoUsuario.ADMINISTRADOR,
-    nombreUsuario: 'Juan Ramón',
-    apellidoUsuario: 'Perez',
-    tipoDocumento: TipoDocumento.DNI,
-    nroDocumento: '99999999',
-    email: 'admin@findyourtrip.com',
-    telefono: '3252982833',
-    contrasenaUsuario: hashPsw1,
-    estadoUsuario: EstadoUsuario.HABILITADO,
-    generoUsuario: GeneroUsuario.OTRO,
+  const administradoresData = [
+    {
+      tipoUsuario: TipoUsuario.ADMINISTRADOR,
+      nombreUsuario: 'Juan Ramón',
+      apellidoUsuario: 'Perez',
+      tipoDocumento: TipoDocumento.DNI,
+      nroDocumento: '99999999',
+      email: 'admin@findyourtrip.com',
+      telefono: '3252982833',
+      contrasenaUsuario: hashPsw1,
+      estadoUsuario: EstadoUsuario.HABILITADO,
+      generoUsuario: GeneroUsuario.OTRO,
+    },
+  ];
+
+  administradoresData.forEach((data) => {
+    em.create(Usuario, data);
   });
+  console.log(`✅ ${administradoresData.length} administradores creados.`);
 
   const hashPsw2 = await Usuario.hashPassword('conductor123');
-  const conductor1 = em.create(Usuario, {
-    tipoUsuario: TipoUsuario.CONDUCTOR,
-    nombreUsuario: 'Carlos',
-    apellidoUsuario: 'González',
-    tipoDocumento: TipoDocumento.DNI,
-    nroDocumento: '30111222',
-    email: 'carlos.gonzalez@gmail.com',
-    telefono: '3415551001',
-    contrasenaUsuario: hashPsw2,
-    estadoUsuario: EstadoUsuario.HABILITADO,
-    generoUsuario: GeneroUsuario.MASCULINO,
-    nroLicenciaConductorUsuario: '30111222',
-    vigenciaLicenciaConductorUsuario: new Date('2028-12-31'),
-    fotoLicenciaConductorUsuario: bufferLicenciaCarlos,
-    fotoPerfil: bufferPerfilCarlos,
-    estadoConductor: EstadoConductor.APROBADO,
-  });
+  const conductoresData = [
+    {
+      tipoUsuario: TipoUsuario.CONDUCTOR,
+      nombreUsuario: 'Carlos',
+      apellidoUsuario: 'González',
+      tipoDocumento: TipoDocumento.DNI,
+      nroDocumento: '30111222',
+      email: 'carlos.gonzalez@gmail.com',
+      telefono: '3415551001',
+      contrasenaUsuario: hashPsw2,
+      estadoUsuario: EstadoUsuario.HABILITADO,
+      generoUsuario: GeneroUsuario.MASCULINO,
+      nroLicenciaConductorUsuario: '30111222',
+      vigenciaLicenciaConductorUsuario: new Date('2028-12-31'),
+      fotoLicenciaConductorUsuario: bufferLicenciaCarlos,
+      fotoPerfil: bufferPerfilCarlos,
+      estadoConductor: EstadoConductor.APROBADO,
+    },
+    {
+      tipoUsuario: TipoUsuario.CONDUCTOR,
+      nombreUsuario: 'María',
+      apellidoUsuario: 'López',
+      tipoDocumento: TipoDocumento.DNI,
+      nroDocumento: '27888999',
+      email: 'maria.lopez@gmail.com',
+      telefono: '3415551002',
+      contrasenaUsuario: hashPsw2,
+      estadoUsuario: EstadoUsuario.HABILITADO,
+      generoUsuario: GeneroUsuario.FEMENINO,
+      nroLicenciaConductorUsuario: '27888999',
+      vigenciaLicenciaConductorUsuario: new Date('2029-06-30'),
+      fotoLicenciaConductorUsuario: bufferLicenciaMaria,
+      fotoPerfil: bufferPerfilMaria,
+      estadoConductor: EstadoConductor.APROBADO,
+    },
+  ];
 
-  const conductor2 = em.create(Usuario, {
-    tipoUsuario: TipoUsuario.CONDUCTOR,
-    nombreUsuario: 'María',
-    apellidoUsuario: 'López',
-    tipoDocumento: TipoDocumento.DNI,
-    nroDocumento: '27888999',
-    email: 'maria.lopez@gmail.com',
-    telefono: '3415551002',
-    contrasenaUsuario: hashPsw2,
-    estadoUsuario: EstadoUsuario.HABILITADO,
-    generoUsuario: GeneroUsuario.FEMENINO,
-    nroLicenciaConductorUsuario: '27888999',
-    vigenciaLicenciaConductorUsuario: new Date('2029-06-30'),
-    fotoLicenciaConductorUsuario: bufferLicenciaMaria,
-    fotoPerfil: bufferPerfilMaria,
-    estadoConductor: EstadoConductor.APROBADO,
-  });
+  const conductores = conductoresData.map((data) => em.create(Usuario, data));
+  const [conductor1, conductor2] = conductores;
+  console.log(`✅ ${conductoresData.length} conductores creados.`);
 
-  em.create(Vehiculo, {
+  const hashPsw3 = await Usuario.hashPassword('pasajero123');
+  const pasajerosData = [
+    {
+      tipoUsuario: TipoUsuario.PASAJERO,
+      nombreUsuario: 'Lucía',
+      apellidoUsuario: 'Fernández',
+      tipoDocumento: TipoDocumento.DNI,
+      nroDocumento: '33444555',
+      email: 'lucia.fernandez@gmail.com',
+      telefono: '3415552001',
+      contrasenaUsuario: hashPsw3,
+      estadoUsuario: EstadoUsuario.HABILITADO,
+      generoUsuario: GeneroUsuario.FEMENINO,
+    },
+    {
+      tipoUsuario: TipoUsuario.PASAJERO,
+      nombreUsuario: 'Martín',
+      apellidoUsuario: 'Suárez',
+      tipoDocumento: TipoDocumento.DNI,
+      nroDocumento: '34555666',
+      email: 'martin.suarez@gmail.com',
+      telefono: '3415552002',
+      contrasenaUsuario: hashPsw3,
+      estadoUsuario: EstadoUsuario.HABILITADO,
+      generoUsuario: GeneroUsuario.MASCULINO,
+    },
+  ];
+
+  const pasajeros = pasajerosData.map((data) => em.create(Usuario, data));
+  const [pasajero1, pasajero2] = pasajeros;
+  console.log(`✅ ${pasajerosData.length} pasajeros creados.`);
+
+  const vehiculo1 = em.create(Vehiculo, {
     patente: 'ABC123',
     marca: 'Toyota',
     modelo: 'Corolla',
@@ -102,7 +150,7 @@ export async function seedDatabase() {
     usuario: conductor1,
   });
 
-  em.create(Vehiculo, {
+  const vehiculo2 = em.create(Vehiculo, {
     patente: 'DEF456',
     marca: 'Ford',
     modelo: 'Focus',
@@ -111,7 +159,7 @@ export async function seedDatabase() {
     usuario: conductor1,
   });
 
-  em.create(Vehiculo, {
+  const vehiculo3 = em.create(Vehiculo, {
     patente: 'GHI789',
     marca: 'Volkswagen',
     modelo: 'Gol',
@@ -170,14 +218,432 @@ export async function seedDatabase() {
     { codPostal: '3500', nombre: 'Resistencia' },
   ];
 
-  const localidadCount = await em.count(Localidad);
+  let rosario!: Localidad;
+  let santaFe!: Localidad;
+  let caba!: Localidad;
+  let laPlata!: Localidad;
+  let cordoba!: Localidad;
+  let mendoza!: Localidad;
 
-  if (localidadCount === 0) {
-    localidadesData.forEach((data) => {
-      em.create(Localidad, data);
-    });
-    console.log(`✅ ${localidadesData.length} localidades creadas.`);
-  }
+  localidadesData.forEach((data) => {
+    const localidad = em.create(Localidad, data);
+
+    if (data.nombre === 'Rosario') {
+      rosario = localidad;
+    }
+
+    if (data.nombre === 'Santa Fe') {
+      santaFe = localidad;
+    }
+
+    if (data.nombre === 'CABA') {
+      caba = localidad;
+    }
+
+    if (data.nombre === 'La Plata') {
+      laPlata = localidad;
+    }
+
+    if (data.nombre === 'Córdoba') {
+      cordoba = localidad;
+    }
+
+    if (data.nombre === 'Mendoza') {
+      mendoza = localidad;
+    }
+  });
+  console.log(`✅ ${localidadesData.length} localidades creadas.`);
+
+  const viaje1 = em.create(Viaje, {
+    viajeFecha: new Date('2026-04-25'),
+    viajeHorario: '09:00',
+    viajeCantLugares: 3,
+    viajeEstado: EstadoViaje.PENDIENTE,
+    viajeComentario: 'Viaje de prueba generado por el seeder.',
+    viajeAceptaMascotas: true,
+    viajePrecio: 5500,
+    vehiculo: vehiculo1,
+    usuarioConductor: conductor1,
+    viajeOrigen: rosario,
+    viajeDestino: santaFe,
+  } as any);
+
+  const viaje2 = em.create(Viaje, {
+    viajeFecha: new Date('2026-04-26'),
+    viajeHorario: '18:30',
+    viajeCantLugares: 2,
+    viajeEstado: EstadoViaje.PENDIENTE,
+    viajeComentario: 'Segundo viaje de prueba generado por el seeder.',
+    viajeAceptaMascotas: false,
+    viajePrecio: 6200,
+    vehiculo: vehiculo3,
+    usuarioConductor: conductor2,
+    viajeOrigen: santaFe,
+    viajeDestino: rosario,
+  } as any);
+  console.log('✅ 2 viajes creados para conductores.');
+
+  const viajesFinalizadosData = [
+    {
+      viajeFecha: new Date('2026-03-21'),
+      viajeHorario: '07:30',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Rosario a Santa Fe.',
+      viajeAceptaMascotas: true,
+      viajePrecio: 5200,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: rosario,
+      viajeDestino: santaFe,
+    },
+    {
+      viajeFecha: new Date('2026-03-22'),
+      viajeHorario: '09:15',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Santa Fe a Rosario.',
+      viajeAceptaMascotas: false,
+      viajePrecio: 5400,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: santaFe,
+      viajeDestino: rosario,
+    },
+    {
+      viajeFecha: new Date('2026-03-23'),
+      viajeHorario: '10:00',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado CABA a La Plata.',
+      viajeAceptaMascotas: true,
+      viajePrecio: 6100,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: caba,
+      viajeDestino: laPlata,
+    },
+    {
+      viajeFecha: new Date('2026-03-24'),
+      viajeHorario: '12:45',
+      viajeCantLugares: 1,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado La Plata a CABA.',
+      viajeAceptaMascotas: false,
+      viajePrecio: 6000,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: laPlata,
+      viajeDestino: caba,
+    },
+    {
+      viajeFecha: new Date('2026-03-25'),
+      viajeHorario: '06:40',
+      viajeCantLugares: 4,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Córdoba a Mendoza.',
+      viajeAceptaMascotas: true,
+      viajePrecio: 9800,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: cordoba,
+      viajeDestino: mendoza,
+    },
+    {
+      viajeFecha: new Date('2026-03-26'),
+      viajeHorario: '08:20',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Mendoza a Córdoba.',
+      viajeAceptaMascotas: false,
+      viajePrecio: 9700,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: mendoza,
+      viajeDestino: cordoba,
+    },
+    {
+      viajeFecha: new Date('2026-03-27'),
+      viajeHorario: '14:00',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Rosario a CABA.',
+      viajeAceptaMascotas: true,
+      viajePrecio: 7900,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: rosario,
+      viajeDestino: caba,
+    },
+    {
+      viajeFecha: new Date('2026-03-28'),
+      viajeHorario: '15:35',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado CABA a Rosario.',
+      viajeAceptaMascotas: false,
+      viajePrecio: 7800,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: caba,
+      viajeDestino: rosario,
+    },
+    {
+      viajeFecha: new Date('2026-03-29'),
+      viajeHorario: '11:10',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Santa Fe a Córdoba.',
+      viajeAceptaMascotas: true,
+      viajePrecio: 8600,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: santaFe,
+      viajeDestino: cordoba,
+    },
+    {
+      viajeFecha: new Date('2026-03-30'),
+      viajeHorario: '17:25',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Mendoza a La Plata.',
+      viajeAceptaMascotas: false,
+      viajePrecio: 10500,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: mendoza,
+      viajeDestino: laPlata,
+    },
+    {
+      viajeFecha: new Date('2026-03-31'),
+      viajeHorario: '07:10',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Rosario a Santa Fe (extra 1).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 5300,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: rosario,
+      viajeDestino: santaFe,
+    },
+    {
+      viajeFecha: new Date('2026-04-01'),
+      viajeHorario: '08:40',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Santa Fe a Rosario (extra 2).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 5500,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: santaFe,
+      viajeDestino: rosario,
+    },
+    {
+      viajeFecha: new Date('2026-04-02'),
+      viajeHorario: '09:20',
+      viajeCantLugares: 4,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado CABA a La Plata (extra 3).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 6200,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: caba,
+      viajeDestino: laPlata,
+    },
+    {
+      viajeFecha: new Date('2026-04-03'),
+      viajeHorario: '10:35',
+      viajeCantLugares: 1,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado La Plata a CABA (extra 4).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 6100,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: laPlata,
+      viajeDestino: caba,
+    },
+    {
+      viajeFecha: new Date('2026-04-04'),
+      viajeHorario: '06:25',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Córdoba a Mendoza (extra 5).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 9900,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: cordoba,
+      viajeDestino: mendoza,
+    },
+    {
+      viajeFecha: new Date('2026-04-05'),
+      viajeHorario: '07:55',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Mendoza a Córdoba (extra 6).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 9600,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: mendoza,
+      viajeDestino: cordoba,
+    },
+    {
+      viajeFecha: new Date('2026-04-06'),
+      viajeHorario: '13:10',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Rosario a CABA (extra 7).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 8000,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: rosario,
+      viajeDestino: caba,
+    },
+    {
+      viajeFecha: new Date('2026-04-07'),
+      viajeHorario: '14:45',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado CABA a Rosario (extra 8).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 7850,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: caba,
+      viajeDestino: rosario,
+    },
+    {
+      viajeFecha: new Date('2026-04-08'),
+      viajeHorario: '10:50',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Santa Fe a Córdoba (extra 9).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 8700,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: santaFe,
+      viajeDestino: cordoba,
+    },
+    {
+      viajeFecha: new Date('2026-04-09'),
+      viajeHorario: '16:30',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Mendoza a La Plata (extra 10).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 10600,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: mendoza,
+      viajeDestino: laPlata,
+    },
+    {
+      viajeFecha: new Date('2026-04-10'),
+      viajeHorario: '07:45',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Rosario a Santa Fe (extra 11).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 5250,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: rosario,
+      viajeDestino: santaFe,
+    },
+    {
+      viajeFecha: new Date('2026-04-11'),
+      viajeHorario: '09:05',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado CABA a La Plata (extra 12).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 6150,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: caba,
+      viajeDestino: laPlata,
+    },
+    {
+      viajeFecha: new Date('2026-04-12'),
+      viajeHorario: '12:00',
+      viajeCantLugares: 4,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Córdoba a Mendoza (extra 13).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 9950,
+      vehiculo: vehiculo2,
+      usuarioConductor: conductor1,
+      viajeOrigen: cordoba,
+      viajeDestino: mendoza,
+    },
+    {
+      viajeFecha: new Date('2026-04-13'),
+      viajeHorario: '15:20',
+      viajeCantLugares: 2,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado CABA a Rosario (extra 14).',
+      viajeAceptaMascotas: false,
+      viajePrecio: 7900,
+      vehiculo: vehiculo3,
+      usuarioConductor: conductor2,
+      viajeOrigen: caba,
+      viajeDestino: rosario,
+    },
+    {
+      viajeFecha: new Date('2026-04-14'),
+      viajeHorario: '18:05',
+      viajeCantLugares: 3,
+      viajeEstado: EstadoViaje.FINALIZADO,
+      viajeComentario: 'Viaje finalizado Santa Fe a Córdoba (extra 15).',
+      viajeAceptaMascotas: true,
+      viajePrecio: 8750,
+      vehiculo: vehiculo1,
+      usuarioConductor: conductor1,
+      viajeOrigen: santaFe,
+      viajeDestino: cordoba,
+    },
+  ];
+
+  viajesFinalizadosData.forEach((data) => {
+    em.create(Viaje, data as any);
+  });
+  console.log(`✅ ${viajesFinalizadosData.length} viajes finalizados creados.`);
+
+  em.create(SolicitudViaje, {
+    solViajeFecha: new Date('2026-04-20'),
+    estadoSolicitud: 'PENDIENTE',
+    usuario: pasajero1,
+    viaje: viaje1,
+  } as any);
+
+  em.create(SolicitudViaje, {
+    solViajeFecha: new Date('2026-04-21'),
+    estadoSolicitud: 'PENDIENTE',
+    usuario: pasajero2,
+    viaje: viaje1,
+  } as any);
+
+  em.create(SolicitudViaje, {
+    solViajeFecha: new Date('2026-04-22'),
+    estadoSolicitud: 'PENDIENTE',
+    usuario: pasajero1,
+    viaje: viaje2,
+  } as any);
+
+  em.create(SolicitudViaje, {
+    solViajeFecha: new Date('2026-04-23'),
+    estadoSolicitud: 'PENDIENTE',
+    usuario: pasajero2,
+    viaje: viaje2,
+  } as any);
+  console.log('✅ 4 solicitudes de viaje creadas (2 por cada viaje).');
 
   await em.flush();
 }

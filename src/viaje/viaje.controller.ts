@@ -811,7 +811,9 @@ async function obtenerPasajerosViajeRealizado(req: Request, res: Response) {
           idUsuario: pasajero.idUsuario,
           nombre: pasajero.nombreUsuario,
           apellido: pasajero.apellidoUsuario,
-          fotoPerfil: pasajero.fotoPerfil ? 'foto_ok' : null, 
+          telefono: pasajero.telefono,
+          email: pasajero.email,
+          fotoPerfil: pasajero.fotoPerfil, 
           calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null 
       };
     });

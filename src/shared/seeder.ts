@@ -10,6 +10,7 @@ import {
   GeneroUsuario,
   TipoDocumento,
   TipoUsuario,
+  EstadoSolicitud,
   EstadoViaje,
 } from './enums.js';
 import { date } from 'zod';
@@ -611,10 +612,40 @@ export async function seedDatabase() {
     },
   ];
 
-  viajesFinalizadosData.forEach((data) => {
-    em.create(Viaje, data as any);
-  });
+  const viajesFinalizados = viajesFinalizadosData.map((data) =>
+    em.create(Viaje, data as any),
+  );
   console.log(`✅ ${viajesFinalizadosData.length} viajes finalizados creados.`);
+
+  const pasajerosDisponibles = [pasajero1, pasajero2];
+  const getPasajeroAleatorio = () =>
+    pasajerosDisponibles[Math.floor(Math.random() * pasajerosDisponibles.length)];
+
+  viajesFinalizados.forEach((viajeFinalizado) => {
+    em.create(SolicitudViaje, {
+      solViajeFecha: new Date(),
+      estadoSolicitud: EstadoSolicitud.APROBADA,
+      usuario: getPasajeroAleatorio(),
+      viaje: viajeFinalizado,
+    } as any);
+
+    em.create(SolicitudViaje, {
+      solViajeFecha: new Date(),
+      estadoSolicitud: EstadoSolicitud.APROBADA,
+      usuario: getPasajeroAleatorio(),
+      viaje: viajeFinalizado,
+    } as any);
+
+    em.create(SolicitudViaje, {
+      solViajeFecha: new Date(),
+      estadoSolicitud: EstadoSolicitud.PENDIENTE,
+      usuario: getPasajeroAleatorio(),
+      viaje: viajeFinalizado,
+    } as any);
+  });
+  console.log(
+    `✅ ${viajesFinalizados.length * 3} solicitudes creadas para viajes finalizados (2 aprobadas y 1 pendiente por viaje).`,
+  );
 
   em.create(SolicitudViaje, {
     solViajeFecha: new Date('2026-04-20'),

@@ -117,6 +117,21 @@ async function CU05PublicarViaje(req: Request, res: Response) {
         .json({ message: 'No podés publicar un viaje con fecha pasada.' });
     }
 
+    // valida que no se pueda publicar un viaje para hoy con una hora que ya pasó
+    const ahora = new Date();
+
+    const [horas, minutos] = datosViaje.viajeHorario.split(':').map(Number);
+
+    const fechaHoraViaje = new Date(anio, mes - 1, dia, horas, minutos, 0, 0);
+
+    if (fechaHoraViaje <= ahora) {
+      return res
+        .status(400)
+        .json({
+          message: 'No podés publicar un viaje para una hora que ya pasó.',
+        });
+    }
+
     const viaje = em.create(Viaje, datosViaje);
     await em.flush();
 
@@ -251,10 +266,23 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
       }),
     );
 
-    // filtra viajes q tienen lugar
-    const viajesFiltrados = viajesConDisponibilidad.filter(
-      (v) => v.lugaresDisponibles > 0,
-    );
+    const ahora = new Date();
+
+    const viajesFiltrados = viajesConDisponibilidad.filter((v) => {
+      // valida que tengan lugar disp
+      if (v.lugaresDisponibles <= 0) {
+        return false;
+      }
+
+      // arma fecha + hora del viaje
+      const [anio, mes, dia] = v.viajeFecha.split('-').map(Number);
+      const [horas, minutos] = v.viajeHorario.split(':').map(Number);
+
+      const fechaHoraViaje = new Date(anio, mes - 1, dia, horas, minutos, 0, 0);
+
+      // solo devuelve viajes que no pasó la fecha y hora
+      return fechaHoraViaje > ahora;
+    });
 
     res.status(200).json({ data: viajesFiltrados });
   } catch (error: any) {

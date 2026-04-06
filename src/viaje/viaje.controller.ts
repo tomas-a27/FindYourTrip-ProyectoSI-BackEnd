@@ -270,7 +270,6 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
 
     res.status(200).json({ data: viajesFiltrados });
   } catch (error: any) {
-    console.log(error);
     res.status(500).json({ message: error.message });
   }
 }
@@ -281,7 +280,6 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
       idUsuario: req.body.validatedData.usuario,
     });
 
-    console.log(req.body.validatedData.viaje);
     const viaje = await em.findOne(Viaje, {
       viajeId: req.body.validatedData.viaje,
     });
@@ -712,7 +710,6 @@ async function ComenzarViaje(req: Request, res: Response) {
     });
 
     if (viajeYaComezado) {
-      console.log(viajeYaComezado);
       return res
         .status(400)
         .json({ message: 'Ya cuenta con un viaje en curso' });

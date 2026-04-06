@@ -13,7 +13,6 @@ import {
   EstadoSolicitud,
   EstadoViaje,
 } from './enums.js';
-import { date } from 'zod';
 
 export async function seedDatabase() {
   const em = orm.em.fork();
@@ -619,7 +618,9 @@ export async function seedDatabase() {
 
   const pasajerosDisponibles = [pasajero1, pasajero2];
   const getPasajeroAleatorio = () =>
-    pasajerosDisponibles[Math.floor(Math.random() * pasajerosDisponibles.length)];
+    pasajerosDisponibles[
+      Math.floor(Math.random() * pasajerosDisponibles.length)
+    ];
 
   viajesFinalizados.forEach((viajeFinalizado) => {
     em.create(SolicitudViaje, {

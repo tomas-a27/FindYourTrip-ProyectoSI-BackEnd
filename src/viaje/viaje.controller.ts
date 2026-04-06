@@ -237,7 +237,26 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
         viaje.usuarioConductor.idUsuario !== usuarioId,
     );
 
-    res.status(200).json({ data: viajesPosibles });
+    const viajesConDisponibilidad = await Promise.all(
+      viajesPosibles.map(async (v) => {
+        const ocupados = await em.count(SolicitudViaje, {
+          viaje: v,
+          estadoSolicitud: EstadoSolicitud.APROBADA,
+        });
+
+        return {
+          ...v,
+          lugaresDisponibles: v.viajeCantLugares - ocupados,
+        };
+      }),
+    );
+
+    // filtra viajes q tienen lugar
+    const viajesFiltrados = viajesConDisponibilidad.filter(
+      (v) => v.lugaresDisponibles > 0
+    );
+
+    res.status(200).json({ data: viajesFiltrados });
   } catch (error: any) {
     console.log(error);
     res.status(500).json({ message: error.message });
@@ -279,6 +298,17 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
           'No podés solicitar este viaje porque ya ha comenzado o su fecha de salida ya pasó.',
       });
     }
+
+    // valida lugares disponibles
+    const ocupados = await em.count(SolicitudViaje, {
+      viaje: viaje,
+      estadoSolicitud: EstadoSolicitud.APROBADA,
+    });
+
+    if (ocupados >= viaje.viajeCantLugares) {
+      return res.status(400).json({ message: 'El viaje ya no tiene lugares disponibles.' });
+    }
+    
     const solicitudPrevia = await em.findOne(SolicitudViaje, {
       usuario: usuario,
       viaje: viaje,
@@ -391,7 +421,28 @@ async function getMisSolicitudes(req: Request, res: Response) {
         orderBy: { solViajeFecha: 'DESC' },
       },
     );
-    res.status(200).json({ data: solicitudes });
+
+    const calificaciones = await em.find(
+      Calificacion,
+      {
+        usuarioCalificador: usuario,
+        calificacionTipo: 'Conductor',
+      },
+      { populate: ['viaje'] as any }
+    );
+
+    const solicitudesJson = JSON.parse(JSON.stringify(solicitudes));
+    const result = solicitudesJson.map((sol: any) => {
+      const calificacionDada = calificaciones.find(
+        (c) => c.viaje.viajeId === sol.viaje?.viajeId
+      );
+      return {
+        ...sol,
+        calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null,
+      };
+    });
+
+    res.status(200).json({ data: result });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -790,7 +841,9 @@ async function obtenerPasajerosViajeRealizado(req: Request, res: Response) {
           idUsuario: pasajero.idUsuario,
           nombre: pasajero.nombreUsuario,
           apellido: pasajero.apellidoUsuario,
-          fotoPerfil: pasajero.fotoPerfil ? 'foto_ok' : null, 
+          telefono: pasajero.telefono,
+          email: pasajero.email,
+          fotoPerfil: pasajero.fotoPerfil, 
           calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null 
       };
     });

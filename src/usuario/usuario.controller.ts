@@ -9,6 +9,7 @@ import {
   TipoUsuario,
 } from '../shared/enums.js';
 import { Vehiculo } from './vehiculo.entity.js';
+import { Sancion } from '../infraccion/sancion.entity.js';
 import jwt from 'jsonwebtoken';
 import {
   usuarioSchema,
@@ -469,9 +470,26 @@ async function loginUsuario(req: Request, res: Response) {
     }
 
     if (usuario.estadoUsuario === EstadoUsuario.INHABILITADO) {
-      return res
-        .status(403)
-        .json({ message: 'Usuario inhabilitado por el administrador' });
+      const hoy = new Date();
+
+      // busca la última sanción del usuario
+      const ultimaSancion = await em.findOne(
+        Sancion,
+        { usuario: usuario },
+        { orderBy: { sancionFechaIni: 'DESC' } }
+      );
+
+      // si existe sanción y ya se cumplió la fechaFin, cambiar estado de usuario a habilitado
+      if (
+        ultimaSancion &&
+        ultimaSancion.sancionFechaFin &&
+        new Date(ultimaSancion.sancionFechaFin) <= hoy
+      ) {
+        usuario.estadoUsuario = EstadoUsuario.HABILITADO;
+        await em.flush();
+      } else {
+        return res.status(403).json({ message: 'Usuario inhabilitado por el administrador' });
+      }
     }
 
     const contrasenaHasheada = Usuario.hashPassword(contrasenaUsuario);

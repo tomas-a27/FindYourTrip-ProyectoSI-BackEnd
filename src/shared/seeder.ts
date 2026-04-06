@@ -639,39 +639,39 @@ export async function seedDatabase() {
 
     em.create(SolicitudViaje, {
       solViajeFecha: new Date(),
-      estadoSolicitud: EstadoSolicitud.PENDIENTE,
+      estadoSolicitud: EstadoSolicitud.APROBADA,
       usuario: getPasajeroAleatorio(),
       viaje: viajeFinalizado,
     } as any);
   });
   console.log(
-    `✅ ${viajesFinalizados.length * 3} solicitudes creadas para viajes finalizados (2 aprobadas y 1 pendiente por viaje).`,
+    `✅ ${viajesFinalizados.length * 3} solicitudes creadas para viajes finalizados (todas aprobadas).`,
   );
 
   em.create(SolicitudViaje, {
     solViajeFecha: new Date('2026-04-20'),
-    estadoSolicitud: 'PENDIENTE',
+    estadoSolicitud: EstadoSolicitud.PENDIENTE,
     usuario: pasajero1,
     viaje: viaje1,
   } as any);
 
   em.create(SolicitudViaje, {
     solViajeFecha: new Date('2026-04-21'),
-    estadoSolicitud: 'PENDIENTE',
+    estadoSolicitud: EstadoSolicitud.PENDIENTE,
     usuario: pasajero2,
     viaje: viaje1,
   } as any);
 
   em.create(SolicitudViaje, {
     solViajeFecha: new Date('2026-04-22'),
-    estadoSolicitud: 'PENDIENTE',
+    estadoSolicitud: EstadoSolicitud.PENDIENTE,
     usuario: pasajero1,
     viaje: viaje2,
   } as any);
 
   em.create(SolicitudViaje, {
     solViajeFecha: new Date('2026-04-23'),
-    estadoSolicitud: 'PENDIENTE',
+    estadoSolicitud: EstadoSolicitud.PENDIENTE,
     usuario: pasajero2,
     viaje: viaje2,
   } as any);

@@ -162,7 +162,7 @@ async function CU06CancelarViaje(req: Request, res: Response) {
       return MailService.enviarMailViajeCancelado(
         sol.usuario,
         viaje,
-        fueraDeTermino
+        fueraDeTermino,
       ).catch((err) =>
         console.error('Error al enviar mail de cancelación:', err),
       );
@@ -253,7 +253,7 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
 
     // filtra viajes q tienen lugar
     const viajesFiltrados = viajesConDisponibilidad.filter(
-      (v) => v.lugaresDisponibles > 0
+      (v) => v.lugaresDisponibles > 0,
     );
 
     res.status(200).json({ data: viajesFiltrados });
@@ -306,9 +306,11 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
     });
 
     if (ocupados >= viaje.viajeCantLugares) {
-      return res.status(400).json({ message: 'El viaje ya no tiene lugares disponibles.' });
+      return res
+        .status(400)
+        .json({ message: 'El viaje ya no tiene lugares disponibles.' });
     }
-    
+
     const solicitudPrevia = await em.findOne(SolicitudViaje, {
       usuario: usuario,
       viaje: viaje,
@@ -428,17 +430,19 @@ async function getMisSolicitudes(req: Request, res: Response) {
         usuarioCalificador: usuario,
         calificacionTipo: 'Conductor',
       },
-      { populate: ['viaje'] as any }
+      { populate: ['viaje'] as any },
     );
 
     const solicitudesJson = JSON.parse(JSON.stringify(solicitudes));
     const result = solicitudesJson.map((sol: any) => {
       const calificacionDada = calificaciones.find(
-        (c) => c.viaje.viajeId === sol.viaje?.viajeId
+        (c) => c.viaje.viajeId === sol.viaje?.viajeId,
       );
       return {
         ...sol,
-        calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null,
+        calificacionOtorgada: calificacionDada
+          ? calificacionDada.calificacionValoracionLikert
+          : null,
       };
     });
 
@@ -531,7 +535,14 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
       {
         solViajeId: idSolicitud,
       },
-      { populate: ['viaje', 'usuario', 'viaje.viajeOrigen', 'viaje.viajeDestino'] },
+      {
+        populate: [
+          'viaje',
+          'usuario',
+          'viaje.viajeOrigen',
+          'viaje.viajeDestino',
+        ],
+      },
     );
 
     // Validamos que la solicitud siga pendiente
@@ -560,8 +571,8 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
       viaje: {
         viajeOrigen: solicitud.viaje.viajeOrigen,
         viajeDestino: solicitud.viaje.viajeDestino,
-        viajeFecha: solicitud.viaje.viajeFecha
-      }
+        viajeFecha: solicitud.viaje.viajeFecha,
+      },
     });
 
     for (const s of solapadas) {
@@ -570,22 +581,32 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
 
     //si se llena el viaje, cancelar las demas solicitudes
     if (ocupados + 1 === solicitud.viaje.viajeCantLugares) {
-      const restantes = await em.find(SolicitudViaje, {
-        viaje: solicitud.viaje,
-        estadoSolicitud: EstadoSolicitud.PENDIENTE,
-        solViajeId: { $ne: idSolicitud }
-      }, { populate: ['usuario'] });
+      const restantes = await em.find(
+        SolicitudViaje,
+        {
+          viaje: solicitud.viaje,
+          estadoSolicitud: EstadoSolicitud.PENDIENTE,
+          solViajeId: { $ne: idSolicitud },
+        },
+        { populate: ['usuario'] },
+      );
 
       for (const s of restantes) {
         s.estadoSolicitud = EstadoSolicitud.DENEGADA;
         // Notificamos por mail el rechazo automático por cupo lleno
-        await MailService.enviarMailSolicitudViajeDenegada(s.usuario, solicitud.viaje);
+        await MailService.enviarMailSolicitudViajeDenegada(
+          s.usuario,
+          solicitud.viaje,
+        );
       }
     }
 
     await em.flush();
 
-    await MailService.enviarMailSolicitudViajeAprobada(solicitud.usuario, solicitud.viaje);
+    await MailService.enviarMailSolicitudViajeAprobada(
+      solicitud.usuario,
+      solicitud.viaje,
+    );
 
     return res
       .status(200)
@@ -598,14 +619,28 @@ async function CUU09AprobarDenegarSolicitudes03(req: Request, res: Response) {
 async function CUU09AprobarDenegarSolicitudes04(req: Request, res: Response) {
   try {
     const idSolicitud = Number.parseInt(req.params.id as string);
-    const solicitud = await em.findOneOrFail(SolicitudViaje, {
-      solViajeId: idSolicitud,
-    }, { populate: ['usuario', 'viaje', 'viaje.viajeDestino', 'viaje.viajeOrigen'] as any });
+    const solicitud = await em.findOneOrFail(
+      SolicitudViaje,
+      {
+        solViajeId: idSolicitud,
+      },
+      {
+        populate: [
+          'usuario',
+          'viaje',
+          'viaje.viajeDestino',
+          'viaje.viajeOrigen',
+        ] as any,
+      },
+    );
 
     em.assign(solicitud, { estadoSolicitud: EstadoSolicitud.DENEGADA });
     await em.flush();
 
-    await MailService.enviarMailSolicitudViajeDenegada(solicitud.usuario, solicitud.viaje);
+    await MailService.enviarMailSolicitudViajeDenegada(
+      solicitud.usuario,
+      solicitud.viaje,
+    );
     return res
       .status(200)
       .json({ message: 'Solicitud denegada correctamente' });
@@ -646,13 +681,33 @@ async function getViajeConDisponibilidad(req: Request, res: Response) {
 async function ComenzarViaje(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
+
     const viaje = await em.findOne(
       Viaje,
       { viajeId: idViaje },
-      { populate: ['solicitudes', 'solicitudes.usuario', 'viajeDestino', 'viajeOrigen'] as any },
+      {
+        populate: [
+          'solicitudes',
+          'solicitudes.usuario',
+          'viajeDestino',
+          'viajeOrigen',
+        ] as any,
+      },
     );
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
+
+    const viajeYaComezado = await em.find(Viaje, {
+      usuarioConductor: viaje.usuarioConductor,
+      viajeEstado: EstadoViaje.EN_CURSO,
+    });
+
+    if (viajeYaComezado) {
+      console.log(viajeYaComezado);
+      return res
+        .status(400)
+        .json({ message: 'Ya cuenta con un viaje en curso' });
+    }
 
     if (viaje.viajeEstado === EstadoViaje.EN_CURSO) {
       return res
@@ -667,7 +722,7 @@ async function ComenzarViaje(req: Request, res: Response) {
         viaje.solicitudes[index].estadoSolicitud = EstadoSolicitud.DENEGADA;
         await MailService.enviarMailSolicitudViajeDenegada(
           viaje.solicitudes[index].usuario,
-          viaje
+          viaje,
         );
       }
     }
@@ -816,35 +871,52 @@ async function CUU14InformeDeRutas(req: Request, res: Response) {
 async function obtenerPasajerosViajeRealizado(req: Request, res: Response) {
   try {
     const idViaje = Number.parseInt(req.params.id as string);
-    
-    const viaje = await em.findOne(Viaje, { viajeId: idViaje }, { populate: ['viajeOrigen', 'viajeDestino', 'solicitudes', 'solicitudes.usuario'] });
-    
+
+    const viaje = await em.findOne(
+      Viaje,
+      { viajeId: idViaje },
+      {
+        populate: [
+          'viajeOrigen',
+          'viajeDestino',
+          'solicitudes',
+          'solicitudes.usuario',
+        ],
+      },
+    );
+
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
-    const calificacionesDelConductor = await em.find(Calificacion, {
-      viaje: viaje,
-      usuarioCalificador: viaje.usuarioConductor ,
-      calificacionTipo: 'Pasajero'
-    }, { populate: ['usuarioCalificado'] });
+    const calificacionesDelConductor = await em.find(
+      Calificacion,
+      {
+        viaje: viaje,
+        usuarioCalificador: viaje.usuarioConductor,
+        calificacionTipo: 'Pasajero',
+      },
+      { populate: ['usuarioCalificado'] },
+    );
 
     const pasajerosAprobados = viaje.solicitudes
       .getItems()
       .filter((s) => s.estadoSolicitud.toLowerCase() === 'aprobada');
 
-    const resultado = pasajerosAprobados.map(solicitud => {
+    const resultado = pasajerosAprobados.map((solicitud) => {
       const pasajero = solicitud.usuario;
-        const calificacionDada = calificacionesDelConductor.find(
-          c => c.usuarioCalificado.idUsuario === pasajero.idUsuario
+      const calificacionDada = calificacionesDelConductor.find(
+        (c) => c.usuarioCalificado.idUsuario === pasajero.idUsuario,
       );
 
       return {
-          idUsuario: pasajero.idUsuario,
-          nombre: pasajero.nombreUsuario,
-          apellido: pasajero.apellidoUsuario,
-          telefono: pasajero.telefono,
-          email: pasajero.email,
-          fotoPerfil: pasajero.fotoPerfil, 
-          calificacionOtorgada: calificacionDada ? calificacionDada.calificacionValoracionLikert : null 
+        idUsuario: pasajero.idUsuario,
+        nombre: pasajero.nombreUsuario,
+        apellido: pasajero.apellidoUsuario,
+        telefono: pasajero.telefono,
+        email: pasajero.email,
+        fotoPerfil: pasajero.fotoPerfil,
+        calificacionOtorgada: calificacionDada
+          ? calificacionDada.calificacionValoracionLikert
+          : null,
       };
     });
 
@@ -853,17 +925,14 @@ async function obtenerPasajerosViajeRealizado(req: Request, res: Response) {
         origen: viaje.viajeOrigen.nombre,
         destino: viaje.viajeDestino.nombre,
         fecha: viaje.viajeFecha,
-        horario: viaje.viajeHorario
+        horario: viaje.viajeHorario,
       },
-      pasajeros: resultado
+      pasajeros: resultado,
     });
-
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 }
-
-
 
 export {
   CU05PublicarViaje,
@@ -884,5 +953,5 @@ export {
   CU11RegistrarCalificacionViajeComoPasajero,
   obtenerViajesSinCalificarPasajero,
   CUU14InformeDeRutas,
-  obtenerPasajerosViajeRealizado
+  obtenerPasajerosViajeRealizado,
 };

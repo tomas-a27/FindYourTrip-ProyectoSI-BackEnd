@@ -125,11 +125,9 @@ async function CU05PublicarViaje(req: Request, res: Response) {
     const fechaHoraViaje = new Date(anio, mes - 1, dia, horas, minutos, 0, 0);
 
     if (fechaHoraViaje <= ahora) {
-      return res
-        .status(400)
-        .json({
-          message: 'No podés publicar un viaje para una hora que ya pasó.',
-        });
+      return res.status(400).json({
+        message: 'No podés publicar un viaje para una hora que ya pasó.',
+      });
     }
 
     const viaje = em.create(Viaje, datosViaje);
@@ -265,24 +263,10 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
         };
       }),
     );
-
-    const ahora = new Date();
-
-    const viajesFiltrados = viajesConDisponibilidad.filter((v) => {
-      // valida que tengan lugar disp
-      if (v.lugaresDisponibles <= 0) {
-        return false;
-      }
-
-      // arma fecha + hora del viaje
-      const [anio, mes, dia] = v.viajeFecha.split('-').map(Number);
-      const [horas, minutos] = v.viajeHorario.split(':').map(Number);
-
-      const fechaHoraViaje = new Date(anio, mes - 1, dia, horas, minutos, 0, 0);
-
-      // solo devuelve viajes que no pasó la fecha y hora
-      return fechaHoraViaje > ahora;
-    });
+    // filtra viajes q tienen lugar
+    const viajesFiltrados = viajesConDisponibilidad.filter(
+      (v) => v.lugaresDisponibles > 0,
+    );
 
     res.status(200).json({ data: viajesFiltrados });
   } catch (error: any) {
@@ -311,19 +295,16 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
     }
 
     const ahora = new Date();
+    ahora.setHours(0, 0, 0, 0);
+
     const [anio, mes, dia] = viaje.viajeFecha.split('-').map(Number);
-    const [horas, minutos] = viaje.viajeHorario.split(':').map(Number);
-    const fechaHoraViaje = new Date(anio, mes - 1, dia, horas, minutos, 0, 0);
+    const fechaViaje = new Date(anio, mes - 1, dia);
+    fechaViaje.setHours(0, 0, 0, 0);
 
-    fechaHoraViaje.setHours(horas, minutos, 0, 0);
-
-    if (ahora >= fechaHoraViaje) {
-      console.log('Ahora:', ahora.toString());
-      console.log('FechaHoraViaje:', fechaHoraViaje.toString());
-
+    if (fechaViaje < ahora) {
       return res.status(400).json({
         message:
-          'No podés solicitar este viaje porque ya ha comenzado o su fecha de salida ya pasó.',
+          'No podés solicitar este viaje porque su fecha de salida ya pasó.',
       });
     }
 

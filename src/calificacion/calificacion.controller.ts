@@ -36,8 +36,7 @@ async function registrarCalificacionGenerica(req: Request, res: Response) {
       usuarioCalificado: Calificado,
       usuarioCalificador: Calificador,
       calificacionValoracionLikert: Number(puntos),
-      calificacionTipo: tipo,
-      comentarioCalificacion: comentario ? String(comentario) : undefined
+      calificacionTipo: tipo
     });
 
     em.persist(nuevaCalificacion);

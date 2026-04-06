@@ -117,6 +117,25 @@ async function CU05PublicarViaje(req: Request, res: Response) {
         .json({ message: 'No podés publicar un viaje con fecha pasada.' });
     }
 
+    // valida que no se pueda publicar un viaje para hoy con una hora que ya pasó
+    const ahora = new Date();
+
+    const [horas, minutos] = datosViaje.viajeHorario.split(':').map(Number);
+
+    const fechaHoraViaje = new Date(
+      anio,
+      mes - 1,
+      dia,
+      horas,
+      minutos,
+      0,
+      0
+    );
+
+    if (fechaHoraViaje <= ahora) {
+      return res.status(400).json({ message: 'No podés publicar un viaje para una hora que ya pasó.' });
+    }
+
     const viaje = em.create(Viaje, datosViaje);
     await em.flush();
 

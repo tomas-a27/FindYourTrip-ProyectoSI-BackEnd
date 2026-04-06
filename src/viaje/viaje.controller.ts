@@ -270,10 +270,31 @@ async function CU07SolicitarViaje01(req: Request, res: Response) {
       }),
     );
 
-    // filtra viajes q tienen lugar
-    const viajesFiltrados = viajesConDisponibilidad.filter(
-      (v) => v.lugaresDisponibles > 0
-    );
+    const ahora = new Date();
+
+    const viajesFiltrados = viajesConDisponibilidad.filter((v) => {
+      // valida que tengan lugar disp
+      if (v.lugaresDisponibles <= 0) {
+        return false;
+      }
+
+      // arma fecha + hora del viaje
+      const [anio, mes, dia] = v.viajeFecha.split('-').map(Number);
+      const [horas, minutos] = v.viajeHorario.split(':').map(Number);
+
+      const fechaHoraViaje = new Date(
+        anio,
+        mes - 1,
+        dia,
+        horas,
+        minutos,
+        0,
+        0
+      );
+
+      // solo devuelve viajes que no pasó la fecha y hora
+      return fechaHoraViaje > ahora;
+    });
 
     res.status(200).json({ data: viajesFiltrados });
   } catch (error: any) {

@@ -704,7 +704,7 @@ async function ComenzarViaje(req: Request, res: Response) {
 
     if (!viaje) return res.status(404).json({ message: 'Viaje no encontrado' });
 
-    const viajeYaComezado = await em.find(Viaje, {
+    const viajeYaComezado = await em.findOne(Viaje, {
       usuarioConductor: viaje.usuarioConductor,
       viajeEstado: EstadoViaje.EN_CURSO,
     });

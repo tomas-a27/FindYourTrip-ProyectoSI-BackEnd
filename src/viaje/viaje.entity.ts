@@ -30,6 +30,9 @@ export class Viaje {
   @Property()
   viajePrecio!: number;
 
+  @Property({ nullable: true })
+  cancelacionTardia?: boolean;
+
   @ManyToOne(() => Vehiculo)
   vehiculo!: Vehiculo;
 

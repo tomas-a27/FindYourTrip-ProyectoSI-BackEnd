@@ -154,17 +154,17 @@ async function CU06CancelarViaje(req: Request, res: Response) {
     const fechaYHoraViaje = new Date(
       `${viaje.viajeFecha}T${viaje.viajeHorario}`,
     );
-    // calculamos la diferencia en horas
+    
     const difHoras =
       (fechaYHoraViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
 
-    // si falta menos de 24hs, se registra como Finalizado para poder calificar
     const fueraDeTermino = difHoras < 24;
     viaje.viajeEstado = fueraDeTermino
       ? EstadoViaje.FINALIZADO
       : EstadoViaje.CANCELADO;
+      
+    viaje.cancelacionTardia = fueraDeTermino;
 
-    // notificamos a los pasajeros aprobados por mail
     const solicitudesAprobadas = await em.find(
       SolicitudViaje,
       { viaje: viaje, estadoSolicitud: EstadoSolicitud.APROBADA },
@@ -783,15 +783,15 @@ async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
   try {
     const usuarioId = Number(req.params.usuarioId);
 
-    // Buscamos solicitudes aprobadas en viajes finalizados
+    // Buscamos solicitudes aprobadas en viajes finalizados (o cancelados tarde)
     const solicitudes = await em.find(
       SolicitudViaje,
       {
         usuario: { idUsuario: usuarioId },
         estadoSolicitud: 'Aprobada',
-        viaje: { viajeEstado: 'finalizado' },
+        viaje: { viajeEstado: { $in: ['finalizado'] } },
       },
-      { populate: ['viaje', 'viaje.usuarioConductor'] as any },
+      { populate: ['viaje', 'viaje.usuarioConductor', 'viaje.viajeOrigen', 'viaje.viajeDestino'] as any },
     );
 
     // Buscamos calificaciones que el pasajero ya hizo para esos viajes
@@ -816,6 +816,10 @@ async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
         idUsuario: s.viaje.usuarioConductor.idUsuario,
         nombre: s.viaje.usuarioConductor.nombreUsuario,
         apellido: s.viaje.usuarioConductor.apellidoUsuario,
+        viajeOrigen: s.viaje.viajeOrigen?.nombre,
+        viajeDestino: s.viaje.viajeDestino?.nombre,
+        viajeFecha: s.viaje.viajeFecha,
+        cancelacionTardia: s.viaje.cancelacionTardia,
       }));
 
     res.status(200).json(pendientes);

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { Usuario } from './usuario.entity.js';
 import { orm } from '../shared/db/orm.js';
+import { Usuario } from './usuario.entity.js';
 import { Vehiculo } from './vehiculo.entity.js';
-import jwt from 'jsonwebtoken';
+import { Viaje } from '../viaje/viaje.entity.js';
 import { vehiculoSchema, editarVehiculoSchema } from './vehiculo.schema.js';
 
 const em = orm.em;
@@ -98,17 +98,28 @@ async function CU16EditarVehiculo(req: Request, res: Response) {
 }
 
 async function CU17EliminarVehiculo(req: Request, res: Response) {
-  try{
+  try {
     const patente = (req.params.patente as string).toUpperCase();
-    const vehiculo = await em.findOne(Vehiculo, {patente});
-    if (!vehiculo) {
-      return res.status(404).json({message: `No se encuentra el vehiculo con patente ${patente}`})
-    }
-    await em.remove(vehiculo).flush();
-    return res.status(200).json({ message: 'Vehículo eliminado con éxito' })
 
-  } catch(error: any) {
-    return res.status(500).json({message: error.mesagge})
+    const vehiculo = await em.findOne(Vehiculo, { patente });
+
+    if (!vehiculo) {
+      return res.status(404).json({ message: `No se encuentra el vehiculo con patente ${patente}` });
+    }
+
+    const cantidadViajes = await em.count(Viaje, {
+      vehiculo: patente
+    } as any);
+
+    if (cantidadViajes > 0) {
+      return res.status(400).json({ message: 'No se puede eliminar el vehículo porque tiene viajes asociados.' });
+    }
+
+    await em.remove(vehiculo).flush();
+
+    return res.status(200).json({ message: 'Vehículo eliminado con éxito' });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message });
   }
 }
 

@@ -816,6 +816,7 @@ async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
         idUsuario: s.viaje.usuarioConductor.idUsuario,
         nombre: s.viaje.usuarioConductor.nombreUsuario,
         apellido: s.viaje.usuarioConductor.apellidoUsuario,
+        fotoPerfil: s.viaje.usuarioConductor.fotoPerfil,
         viajeOrigen: s.viaje.viajeOrigen?.nombre,
         viajeDestino: s.viaje.viajeDestino?.nombre,
         viajeFecha: s.viaje.viajeFecha,

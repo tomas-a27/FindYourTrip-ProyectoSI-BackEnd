@@ -280,9 +280,9 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
       idUsuario: req.body.validatedData.usuario,
     });
 
-    const viaje = await em.findOne(Viaje, {
-      viajeId: req.body.validatedData.viaje,
-    });
+    const viaje = await em.findOne(Viaje, 
+      { viajeId: req.body.validatedData.viaje },
+      { populate: ['usuarioConductor', 'viajeOrigen', 'viajeDestino'] as any });
 
     if (!usuario) {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
@@ -339,6 +339,8 @@ async function CU07SolicitarViaje02(req: Request, res: Response) {
 
     const solicitudViaje = em.create(SolicitudViaje, datosSolictudViaje);
     await em.flush();
+
+    await MailService.enviarMailNuevaSolicitud(viaje.usuarioConductor, usuario, viaje);
 
     res.status(201).json({
       message: 'Solicitud de viaje creada con éxito',

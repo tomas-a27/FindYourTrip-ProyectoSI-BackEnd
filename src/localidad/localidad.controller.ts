@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { orm } from '../shared/db/orm.js';
 import { Localidad } from './localidad.entity.js';
 import { localidadSchema, editarLocalidadSchema } from './localidad.schema.js';
+import { Viaje } from '../viaje/viaje.entity.js';
 
 const em = orm.em;
 
@@ -71,12 +72,30 @@ async function eliminarLocalidad(req: Request, res: Response) {
     const id = Number(req.params.id);
     const localidadToDelete = await em.findOneOrFail(Localidad, id);
 
+    // Valida si la localidad está en uso en algún Viaje
+    const viajeConEstaLocalidad = await em.findOne(Viaje, {
+      $or: [
+        { viajeOrigen: localidadToDelete },
+        { viajeDestino: localidadToDelete }
+      ]
+    });
+
+    if (viajeConEstaLocalidad) {
+      return res.status(400).json({ 
+        message: 'No se puede eliminar la localidad porque tiene viajes asociados.' 
+      });
+    }
+
     em.remove(localidadToDelete);
     await em.flush();
+    
     res.status(200).json({
       message: 'La localidad se eliminó con éxito'
     });
   } catch (error: any) {
+    if (error.name === 'NotFoundError') {
+      return res.status(404).json({ message: 'Localidad no encontrada.' });
+    }
     res.status(500).json({ message: error.message });
   }
 }

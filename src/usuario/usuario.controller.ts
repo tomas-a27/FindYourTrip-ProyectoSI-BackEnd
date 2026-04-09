@@ -197,6 +197,46 @@ async function CU02EditarPasajero(req: Request, res: Response) {
       }
     }
 
+    // valida email y teléfono duplicados
+    const conflictos: string[] = [];
+
+    if (validatedData.email) {
+      const existeEmail = await em.findOne(Usuario, {
+        email: validatedData.email,
+        idUsuario: { $ne: idUsuario },
+      });
+      
+      if (existeEmail) {
+        conflictos.push('email');
+      }
+    }
+
+    if (validatedData.telefono) {
+      const existeTelefono = await em.findOne(Usuario, {
+        telefono: validatedData.telefono,
+        idUsuario: { $ne: idUsuario },
+      });
+
+      if (existeTelefono) {
+        conflictos.push('teléfono');
+      }
+    }
+
+    if (conflictos.length > 0) {
+      if (conflictos.length === 1) {
+        if (conflictos[0] === 'email') {
+          return res.status(409).json({ message: 'Ya existe un usuario con ese email' });
+        }
+        if (conflictos[0] === 'teléfono') {
+          return res.status(409).json({ message: 'Ya existe un usuario con ese teléfono' });
+        }
+      }
+
+      const conflictoMsg = conflictos.join(', ').replace(/, ([^,]*)$/, ' y $1');
+
+      return res.status(409).json({ message: `Los siguientes datos ya se encuentran registrados en el sistema: ${conflictoMsg}` });
+    }
+
     em.assign(usuarioToUpdate, validatedData);
     await em.flush();
     res.status(200).json({

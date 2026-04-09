@@ -129,4 +129,22 @@ export const MailService = {
     `;
     return await enviarNotificacionEmail(usuario.email, sujeto, titulo, contenido);
   },
+
+  enviarMailViajeFinalizado: async (usuario: any, viaje: any) => {
+    const sujeto = 'El viaje ha finalizado - Find Your Trip';
+    const titulo = `¡Llegaste a destino, ${usuario.nombreUsuario}!`;
+    const contenido = `
+      <p>Te informamos que el viaje con destino a <b>${viaje.viajeDestino.nombre}</b> ha finalizado correctamente. ✨</p>
+      
+      <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
+        <p style="margin: 5px 0;">📍 <b>Origen:</b> ${viaje.viajeOrigen.nombre}</p>
+        <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
+        <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${viaje.viajeFecha.split('-').reverse().join('/')}</p>
+      </div>
+
+      <p> Ingresá a la plataforma para <b>calificar al conductor</b> y contarnos cómo fue tu experiencia.</p>
+      <p style="font-weight: bold; color: #2d4a2d;">¡Gracias por viajar con nosotros! 🚙💨</p>
+    `;
+    return await enviarNotificacionEmail(usuario.email, sujeto, titulo, contenido);
+  },
 };

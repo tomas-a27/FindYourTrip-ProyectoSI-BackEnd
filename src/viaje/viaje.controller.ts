@@ -754,7 +754,7 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
       Viaje,
       { viajeId: idViaje },
       {
-        populate: ['solicitudes.usuario'],
+        populate: ['solicitudes.usuario', 'viajeOrigen', 'viajeDestino'] as any,
       },
     );
 
@@ -762,6 +762,14 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
 
     viaje.viajeEstado = 'finalizado';
     await em.flush();
+
+    const solicitudesAprobadas = viaje.solicitudes
+      .getItems()
+      .filter((s) => s.estadoSolicitud === 'Aprobada');
+
+    for (const solicitud of solicitudesAprobadas) {
+      await MailService.enviarMailViajeFinalizado(solicitud.usuario, viaje);
+    }
 
     const pasajerosACalificar = viaje.solicitudes
       .getItems()

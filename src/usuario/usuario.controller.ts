@@ -127,17 +127,30 @@ async function CU01RegistrarUsuario(req: Request, res: Response) {
         },
       ],
     });
-    
+
     if (existingUsers.length > 0) {
       const conflictos: string[] = [];
       for (const existingUser of existingUsers) {
-        if (existingUser.email === userData.email && !conflictos.includes('email')) conflictos.push('email');
-        if (existingUser.telefono === userData.telefono && !conflictos.includes('teléfono')) conflictos.push('teléfono');
-        if (existingUser.tipoDocumento === userData.tipoDocumento && existingUser.nroDocumento === userData.nroDocumento && !conflictos.includes('documento')) conflictos.push('documento');
+        if (
+          existingUser.email === userData.email &&
+          !conflictos.includes('email')
+        )
+          conflictos.push('email');
+        if (
+          existingUser.telefono === userData.telefono &&
+          !conflictos.includes('teléfono')
+        )
+          conflictos.push('teléfono');
+        if (
+          existingUser.tipoDocumento === userData.tipoDocumento &&
+          existingUser.nroDocumento === userData.nroDocumento &&
+          !conflictos.includes('documento')
+        )
+          conflictos.push('documento');
       }
-      
+
       const conflictoMsg = conflictos.join(', ').replace(/, ([^,]*)$/, ' y $1');
-      
+
       return res.status(409).json({
         message: `Los siguientes datos ya se encuentran registrados en el sistema: ${conflictoMsg}`,
       });
@@ -205,7 +218,7 @@ async function CU02EditarPasajero(req: Request, res: Response) {
         email: validatedData.email,
         idUsuario: { $ne: idUsuario },
       });
-      
+
       if (existeEmail) {
         conflictos.push('email');
       }
@@ -225,16 +238,22 @@ async function CU02EditarPasajero(req: Request, res: Response) {
     if (conflictos.length > 0) {
       if (conflictos.length === 1) {
         if (conflictos[0] === 'email') {
-          return res.status(409).json({ message: 'Ya existe un usuario con ese email' });
+          return res
+            .status(409)
+            .json({ message: 'Ya existe un usuario con ese email' });
         }
         if (conflictos[0] === 'teléfono') {
-          return res.status(409).json({ message: 'Ya existe un usuario con ese teléfono' });
+          return res
+            .status(409)
+            .json({ message: 'Ya existe un usuario con ese teléfono' });
         }
       }
 
       const conflictoMsg = conflictos.join(', ').replace(/, ([^,]*)$/, ' y $1');
 
-      return res.status(409).json({ message: `Los siguientes datos ya se encuentran registrados en el sistema: ${conflictoMsg}` });
+      return res.status(409).json({
+        message: `Los siguientes datos ya se encuentran registrados en el sistema: ${conflictoMsg}`,
+      });
     }
 
     em.assign(usuarioToUpdate, validatedData);
@@ -378,6 +397,16 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
         message: `Ya existe un vehiculo registrado con la patente ${vehiculo.patente}`,
       });
     }
+    const nroLicenciaRepetido = await em.findOne(Usuario, {
+      nroLicenciaConductorUsuario: datosLicencia.nroLicenciaConductorUsuario,
+      idUsuario: { $ne: idUsuario },
+    });
+
+    if (nroLicenciaRepetido) {
+      return res.status(409).json({
+        message: `Ya existe un usuario registrado con el nro de licencia ${nroLicenciaRepetido.nroLicenciaConductorUsuario}`,
+      });
+    }
 
     wrap(usuario).assign({
       ...datosLicencia,
@@ -449,7 +478,6 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     // cambiamos el tipo de usuario
     if (estadoConductor === EstadoConductor.APROBADO) {
       usuario.tipoUsuario = TipoUsuario.CONDUCTOR;
-
     } else if (estadoConductor === EstadoConductor.DENEGADO) {
       usuario.nroLicenciaConductorUsuario = undefined;
       usuario.vigenciaLicenciaConductorUsuario = undefined;
@@ -468,7 +496,7 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
 
     MailService.enviarMailSolicitudParaSerConductor(
       usuario,
-      estadoConductor
+      estadoConductor,
     ).catch((err) => console.error('Error asincrónico al enviar mail:', err));
 
     res.status(200).json({
@@ -516,7 +544,7 @@ async function loginUsuario(req: Request, res: Response) {
       const ultimaSancion = await em.findOne(
         Sancion,
         { usuario: usuario },
-        { orderBy: { sancionFechaIni: 'DESC' } }
+        { orderBy: { sancionFechaIni: 'DESC' } },
       );
 
       // si existe sanción y ya se cumplió la fechaFin, cambiar estado de usuario a habilitado
@@ -528,7 +556,9 @@ async function loginUsuario(req: Request, res: Response) {
         usuario.estadoUsuario = EstadoUsuario.HABILITADO;
         await em.flush();
       } else {
-        return res.status(403).json({ message: 'Usuario inhabilitado por el administrador' });
+        return res
+          .status(403)
+          .json({ message: 'Usuario inhabilitado por el administrador' });
       }
     }
 
@@ -635,7 +665,6 @@ async function restablecerContrasena(req: Request, res: Response) {
 
 async function obtenerInformeConductores(req: Request, res: Response) {
   try {
-
     const conductores = await em.find(
       Usuario,
       {
@@ -651,7 +680,7 @@ async function obtenerInformeConductores(req: Request, res: Response) {
           'apellidoUsuario',
           'calificacionConductor',
         ],
-      }
+      },
     );
 
     res.status(200).json({

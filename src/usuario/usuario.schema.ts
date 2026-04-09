@@ -16,9 +16,9 @@ export const usuarioSchema = z
 
     telefono: z
       .string()
-      .min(8, 'Teléfono inválido')
-      .refine((val) => !isNaN(Number(val.replace(/\s/g, ''))), {
-        message: 'El teléfono debe contener solo números',
+      .refine((val) => /^\+\d{8,}$/.test(val.replace(/\s/g, '')), {
+        message:
+          "El teléfono debe comenzar con '+' y contener al menos 8 dígitos",
       }),
     generoUsuario: z.nativeEnum(GeneroUsuario).optional(),
     email: z.string().email('Formato de email incorrecto'),

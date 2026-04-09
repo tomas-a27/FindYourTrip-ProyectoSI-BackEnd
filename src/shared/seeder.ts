@@ -55,7 +55,7 @@ export async function seedDatabase() {
       tipoDocumento: TipoDocumento.DNI,
       nroDocumento: '99999999',
       email: 'admin@findyourtrip.com',
-      telefono: '3252982833',
+      telefono: '+543252982833',
       contrasenaUsuario: hashPsw1,
       estadoUsuario: EstadoUsuario.HABILITADO,
       generoUsuario: GeneroUsuario.OTRO,
@@ -76,7 +76,7 @@ export async function seedDatabase() {
       tipoDocumento: TipoDocumento.DNI,
       nroDocumento: '30111222',
       email: 'carlos.gonzalez@gmail.com',
-      telefono: '3415551001',
+      telefono: '+543415551001',
       contrasenaUsuario: hashPsw2,
       estadoUsuario: EstadoUsuario.HABILITADO,
       generoUsuario: GeneroUsuario.MASCULINO,
@@ -93,7 +93,7 @@ export async function seedDatabase() {
       tipoDocumento: TipoDocumento.DNI,
       nroDocumento: '27888999',
       email: 'maria.lopez@gmail.com',
-      telefono: '3415551002',
+      telefono: '+543415551002',
       contrasenaUsuario: hashPsw2,
       estadoUsuario: EstadoUsuario.HABILITADO,
       generoUsuario: GeneroUsuario.FEMENINO,
@@ -118,7 +118,7 @@ export async function seedDatabase() {
       tipoDocumento: TipoDocumento.DNI,
       nroDocumento: '33444555',
       email: 'lucia.fernandez@gmail.com',
-      telefono: '3415552001',
+      telefono: '+543415552001',
       contrasenaUsuario: hashPsw3,
       estadoUsuario: EstadoUsuario.HABILITADO,
       generoUsuario: GeneroUsuario.FEMENINO,
@@ -130,7 +130,7 @@ export async function seedDatabase() {
       tipoDocumento: TipoDocumento.DNI,
       nroDocumento: '34555666',
       email: 'martin.suarez@gmail.com',
-      telefono: '3415552002',
+      telefono: '+543415552002',
       contrasenaUsuario: hashPsw3,
       estadoUsuario: EstadoUsuario.HABILITADO,
       generoUsuario: GeneroUsuario.MASCULINO,
@@ -617,35 +617,34 @@ export async function seedDatabase() {
   console.log(`✅ ${viajesFinalizadosData.length} viajes finalizados creados.`);
 
   const pasajerosDisponibles = [pasajero1, pasajero2];
-  const getPasajeroAleatorio = () =>
-    pasajerosDisponibles[
-      Math.floor(Math.random() * pasajerosDisponibles.length)
-    ];
+  let solicitudesAprobadasCreadas = 0;
 
-  viajesFinalizados.forEach((viajeFinalizado) => {
-    em.create(SolicitudViaje, {
-      solViajeFecha: new Date(),
-      estadoSolicitud: EstadoSolicitud.APROBADA,
-      usuario: getPasajeroAleatorio(),
-      viaje: viajeFinalizado,
-    } as any);
+  viajesFinalizados.forEach((viajeFinalizado, index) => {
+    const cuposDisponibles = Math.max(
+      0,
+      Number(viajeFinalizado.viajeCantLugares ?? 0),
+    );
+    const cantidadAprobadas = Math.min(
+      cuposDisponibles,
+      pasajerosDisponibles.length,
+    );
 
-    em.create(SolicitudViaje, {
-      solViajeFecha: new Date(),
-      estadoSolicitud: EstadoSolicitud.APROBADA,
-      usuario: getPasajeroAleatorio(),
-      viaje: viajeFinalizado,
-    } as any);
+    for (let i = 0; i < cantidadAprobadas; i++) {
+      const pasajero =
+        pasajerosDisponibles[(index + i) % pasajerosDisponibles.length];
 
-    em.create(SolicitudViaje, {
-      solViajeFecha: new Date(),
-      estadoSolicitud: EstadoSolicitud.APROBADA,
-      usuario: getPasajeroAleatorio(),
-      viaje: viajeFinalizado,
-    } as any);
+      em.create(SolicitudViaje, {
+        solViajeFecha: new Date(),
+        estadoSolicitud: EstadoSolicitud.APROBADA,
+        usuario: pasajero,
+        viaje: viajeFinalizado,
+      } as any);
+
+      solicitudesAprobadasCreadas++;
+    }
   });
   console.log(
-    `✅ ${viajesFinalizados.length * 3} solicitudes creadas para viajes finalizados (todas aprobadas).`,
+    `✅ ${solicitudesAprobadasCreadas} solicitudes creadas para viajes finalizados (todas aprobadas y sin usuarios repetidos por viaje).`,
   );
 
   em.create(SolicitudViaje, {

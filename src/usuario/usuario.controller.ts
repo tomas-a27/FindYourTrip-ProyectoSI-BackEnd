@@ -183,7 +183,7 @@ async function CU02EditarPasajero(req: Request, res: Response) {
       usuarioToUpdate.contrasenaUsuario !==
         validatedData.contrasenaUsuarioActual
     ) {
-      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
+      return res.status(400).json({ message: 'Contraseña actual incorrecta' });
     }
 
     if (

@@ -154,15 +154,16 @@ async function CU06CancelarViaje(req: Request, res: Response) {
     const fechaYHoraViaje = new Date(
       `${viaje.viajeFecha}T${viaje.viajeHorario}`,
     );
-    
-    const difHoras =
-      (fechaYHoraViaje.getTime() - ahora.getTime()) / (1000 * 60 * 60);
 
-    const fueraDeTermino = difHoras < 24;
+    // Queda fuera de término desde 24h antes del viaje en adelante.
+    const limiteCancelacionSinPenalidad = new Date(
+      fechaYHoraViaje.getTime() - 24 * 60 * 60 * 1000,
+    );
+    const fueraDeTermino = ahora >= limiteCancelacionSinPenalidad;
     viaje.viajeEstado = fueraDeTermino
       ? EstadoViaje.FINALIZADO
       : EstadoViaje.CANCELADO;
-      
+
     viaje.cancelacionTardia = fueraDeTermino;
 
     const solicitudesAprobadas = await em.find(
@@ -721,6 +722,25 @@ async function ComenzarViaje(req: Request, res: Response) {
         .json({ message: 'El viaje ya se encuentra en curso' });
     }
 
+    const viajesPendientesConductor = await em.find(Viaje, {
+      usuarioConductor: viaje.usuarioConductor,
+      viajeEstado: EstadoViaje.PENDIENTE,
+    });
+
+    const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const viajeAtrasado = viajesPendientesConductor.find((v) => {
+      const fechaHoraViaje = new Date(`${v.viajeFecha}T${v.viajeHorario}`);
+      return fechaHoraViaje < hace24Horas;
+    });
+
+    if (viajeAtrasado) {
+      return res.status(400).json({
+        message:
+          'No podés comenzar un viaje porque tenés un viaje pendiente atrasado por más de 24 horas.',
+      });
+    }
+
     for (let index = 0; index < viaje.solicitudes.length; index++) {
       if (
         viaje.solicitudes[index].estadoSolicitud === EstadoSolicitud.PENDIENTE
@@ -730,9 +750,13 @@ async function ComenzarViaje(req: Request, res: Response) {
           viaje.solicitudes[index].usuario,
           viaje,
         );
-      }
-      else if (viaje.solicitudes[index].estadoSolicitud === EstadoSolicitud.APROBADA) {
-        await MailService.enviarMailViajeComenzado(viaje.solicitudes[index].usuario, viaje);
+      } else if (
+        viaje.solicitudes[index].estadoSolicitud === EstadoSolicitud.APROBADA
+      ) {
+        await MailService.enviarMailViajeComenzado(
+          viaje.solicitudes[index].usuario,
+          viaje,
+        );
       }
     }
     viaje.viajeEstado = EstadoViaje.EN_CURSO;
@@ -802,7 +826,14 @@ async function obtenerViajesSinCalificarPasajero(req: Request, res: Response) {
         estadoSolicitud: 'Aprobada',
         viaje: { viajeEstado: { $in: ['finalizado'] } },
       },
-      { populate: ['viaje', 'viaje.usuarioConductor', 'viaje.viajeOrigen', 'viaje.viajeDestino'] as any },
+      {
+        populate: [
+          'viaje',
+          'viaje.usuarioConductor',
+          'viaje.viajeOrigen',
+          'viaje.viajeDestino',
+        ] as any,
+      },
     );
 
     // Buscamos calificaciones que el pasajero ya hizo para esos viajes

@@ -112,6 +112,25 @@ export const MailService = {
     return await enviarNotificacionEmail(usuario.email, sujeto, titulo, contenido);
   },
 
+  // Mail para CU 07: Nueva Solicitud Recibida (Aviso al Conductor)
+  enviarMailNuevaSolicitud: async (conductor: any, pasajero: any, viaje: any) => {
+    const sujeto = 'Nueva solicitud de pasajero - Find Your Trip';
+    const titulo = `¡Hola ${conductor.nombreUsuario}! Tienes una nueva solicitud`;
+    const contenido = `
+      <p>El usuario <b>${pasajero.nombreUsuario} ${pasajero.apellidoUsuario}</b> quiere unirse a tu viaje.</p>
+      
+      <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
+        <p style="margin: 5px 0;">📍 <b>Origen:</b> ${viaje.viajeOrigen.nombre}</p>
+        <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
+        <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${viaje.viajeFecha.split('-').reverse().join('/')}</p>
+      </div>
+
+      <p>Recordá que podés revisar su perfil y aceptar o rechazar la solicitud desde la sección "Mis Viajes" en la plataforma.</p>
+      <p style="font-weight: bold; color: #2d4a2d;">¡Buen viaje!</p>
+    `;
+    return await enviarNotificacionEmail(conductor.email, sujeto, titulo, contenido);
+  },
+
   // Mail para cuando el viaje comienza (Aviso a pasajeros aprobados)
   enviarMailViajeComenzado: async (usuario: any, viaje: any) => {
     const sujeto = '¡Tu viaje ha comenzado! - Find Your Trip';

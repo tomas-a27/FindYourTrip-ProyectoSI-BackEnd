@@ -731,6 +731,9 @@ async function ComenzarViaje(req: Request, res: Response) {
           viaje,
         );
       }
+      else if (viaje.solicitudes[index].estadoSolicitud === EstadoSolicitud.APROBADA) {
+        await MailService.enviarMailViajeComenzado(viaje.solicitudes[index].usuario, viaje);
+      }
     }
     viaje.viajeEstado = EstadoViaje.EN_CURSO;
     await em.flush();

@@ -110,5 +110,23 @@ export const MailService = {
       }
     `;
     return await enviarNotificacionEmail(usuario.email, sujeto, titulo, contenido);
-  }
+  },
+
+  // Mail para cuando el viaje comienza (Aviso a pasajeros aprobados)
+  enviarMailViajeComenzado: async (usuario: any, viaje: any) => {
+    const sujeto = '¡Tu viaje ha comenzado! - Find Your Trip';
+    const titulo = `¡A viajar, ${usuario.nombreUsuario}!`;
+    const contenido = `
+      <p>Te informamos que el conductor ha marcado el inicio del viaje. ¡Esperamos que tengas un excelente trayecto!</p>
+      
+      <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #e2eee2;">
+        <p style="margin: 5px 0;">📍 <b>Origen:</b> ${viaje.viajeOrigen.nombre}</p>
+        <p style="margin: 5px 0;">🏁 <b>Destino:</b> ${viaje.viajeDestino.nombre}</p>
+        <p style="margin: 5px 0;">📅 <b>Fecha:</b> ${viaje.viajeFecha.split('-').reverse().join('/')}</p>
+      </div>
+
+      <p style="font-weight: bold; color: #2d4a2d;">¡Buen viaje! 🚗💨</p>
+    `;
+    return await enviarNotificacionEmail(usuario.email, sujeto, titulo, contenido);
+  },
 };

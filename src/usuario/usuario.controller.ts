@@ -385,20 +385,6 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
     if (usuario.estadoConductor === EstadoConductor.APROBADO) {
       return res.status(409).json({ message: 'El usuario ya es un conductor' });
     }
-    console.log('..................');
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
 
     console.log(usuario);
     if (usuario.estadoConductor === EstadoConductor.PENDIENTE) {
@@ -406,20 +392,7 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
         .status(409)
         .json({ message: 'El usuario ya tiene una solicitud pendiente' });
     }
-    console.log('..................');
-    console.log('..................');
 
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
-
-    console.log('..................');
     const { vehiculo, ...datosLicencia } = req.body.validatedData;
 
     const vehiculoRepetido = await em.findOne(Vehiculo, {

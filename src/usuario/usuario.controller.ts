@@ -362,7 +362,11 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
   try {
     const userFromToken = (req as any).user;
     const idUsuario = Number.parseInt(req.params.id as string);
-    const usuario = await em.findOne(Usuario, { idUsuario });
+    const usuario = await em.findOne(
+      Usuario,
+      { idUsuario },
+      { refresh: true, disableIdentityMap: true },
+    );
 
     if (userFromToken.idUsuario !== idUsuario) {
       return res.status(403).json({ message: 'No autorizado' });
@@ -381,12 +385,41 @@ async function CU03SolicitarPasajeroComoConductor(req: Request, res: Response) {
     if (usuario.estadoConductor === EstadoConductor.APROBADO) {
       return res.status(409).json({ message: 'El usuario ya es un conductor' });
     }
+    console.log('..................');
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log(usuario);
     if (usuario.estadoConductor === EstadoConductor.PENDIENTE) {
       return res
         .status(409)
         .json({ message: 'El usuario ya tiene una solicitud pendiente' });
     }
+    console.log('..................');
+    console.log('..................');
 
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
+
+    console.log('..................');
     const { vehiculo, ...datosLicencia } = req.body.validatedData;
 
     const vehiculoRepetido = await em.findOne(Vehiculo, {
@@ -493,6 +526,7 @@ async function CU04AprobarPasajeroComoConductor(req: Request, res: Response) {
     usuario.estadoConductor = estadoConductor;
 
     await em.flush();
+    em.clear();
 
     MailService.enviarMailSolicitudParaSerConductor(
       usuario,

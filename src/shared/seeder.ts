@@ -25,7 +25,7 @@ export async function seedDatabase() {
   }
 
   const resPerfilCarlos = await fetch(
-    'https://ui-avatars.com/api/?name=Carlos+Gonzalez&background=random&size=200',
+    'https://randomuser.me/api/portraits/men/32.jpg',
   );
   const bufferPerfilCarlos = Buffer.from(await resPerfilCarlos.arrayBuffer());
 
@@ -37,7 +37,7 @@ export async function seedDatabase() {
   );
 
   const resPerfilMaria = await fetch(
-    'https://ui-avatars.com/api/?name=Maria+Lopez&background=random&size=200',
+    'https://randomuser.me/api/portraits/women/90.jpg',
   );
   const bufferPerfilMaria = Buffer.from(await resPerfilMaria.arrayBuffer());
 

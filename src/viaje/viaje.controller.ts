@@ -804,6 +804,7 @@ async function CU10FinalizarViaje(req: Request, res: Response) {
         idUsuario: s.usuario.idUsuario,
         nombre: s.usuario.nombreUsuario,
         apellido: s.usuario.apellidoUsuario,
+        fotoPerfil: s.usuario.fotoPerfil,
       }));
 
     res.status(200).json({

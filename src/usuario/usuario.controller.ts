@@ -72,15 +72,6 @@ function usuarioValidator(req: Request, res: Response, next: NextFunction) {
 
   const result = usuarioSchema.safeParse(req.body);
 
-  /*
-  if (!result.success) {
-    return res.status(400).json({
-      message: "Error: El número de documento, teléfono o email no están en el formato correcto",
-      errors: result.error.format()
-    });
-  }
-  */
-
   if (!result.success) {
     const mensajes = result.error.issues.map((issue) => ({
       campo: issue.path.join('.'),
@@ -93,7 +84,8 @@ function usuarioValidator(req: Request, res: Response, next: NextFunction) {
     });
   }
 
-  const data = result.data;
+  const data = result.data as any; 
+  
   // hasheo de contraseñas
   if (data.contrasenaUsuario) {
     data.contrasenaUsuario = Usuario.hashPassword(data.contrasenaUsuario);
@@ -108,6 +100,11 @@ function usuarioValidator(req: Request, res: Response, next: NextFunction) {
 
   if (bufferPerfil) {
     req.body.validatedData.fotoPerfil = bufferPerfil;
+  }
+
+
+  if (req.body.vigenciaLicenciaConductorUsuario) {
+    req.body.validatedData.vigenciaLicenciaConductorUsuario = req.body.vigenciaLicenciaConductorUsuario;
   }
 
   next();
